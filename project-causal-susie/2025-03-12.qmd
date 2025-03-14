@@ -1,6 +1,8 @@
 ---
 title: "12 March 2025"
-format: markdown
+format: 
+  gfm:
+    html-math-method: webtex
 editor: visual
 ---
 
@@ -30,7 +32,11 @@ Here, let $\theta^{(x)} := \mathbb{E}[Y(x)], \, x = 0,1$.
 According to the **consistency assumption** (i.e., SUTVA), the observed outcome $Y_i$ is either $Y_i(0)$ or $Y_i(1)$:
 
 $$
-Y_i := Y_i(1, u_i) X_i + Y_i(0, u_i) (1 - X_i) = Y_i(1, u_i) \cdot \mathbb{I}[X_i = 1] + Y_i(0, u_i) \cdot \mathbb{I}[X_i = 0].
+Y_i := Y_i(1, u_i) X_i + Y_i(0, u_i) (1 - X_i) = Y_i(1, u_i) \cdot \mathbb{I}[X_i = 1] + Y_i(0, u_i) \cdot \mathbb{I}[X_i = 0] \\
+= \begin{cases}
+Y_i(1, u_i), \text{ if } X_i = 1 \\
+Y_i(0, u_i), \text{ if } X_i = 0.
+\end{cases}
 $$
 
 The confounder $U$ affects the treatment assignments $X$, i.e., $X \sim \mathcal{F}(U)$.
