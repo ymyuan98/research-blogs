@@ -1,0 +1,459 @@
+---
+title: "17 March 2025"
+format: 
+  gfm:
+    html-math-method: webtex
+editor: visual
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## 1. Inverse probability weighting estimates for categorical treatment with 3 levels
+
+### 1.1 Definition of the potential outcome model
+
+Recall Section 1.2 of `2025-03-12.qmd`.
+
+Suppose the exposure has three levels, $x=0, 1, 2$. Assume the confounder is a random variable $U$. The data generative model of the potential outcome is
+
+$$
+Y_i(x_i, u_i) = f(x_i, u_i) + \epsilon_i, \ \epsilon_i \sim \mathcal{P}, \mathbb{E}[\epsilon] = 0.
+$$
+
+The function $f(x_i,u_i)$ is a function of exposure level $x_i$ and confounder $u_i$, and the random error $\epsilon_i$ is independent of exposure $x_i$ and the confounder $u_i$.
+
+Let $\theta^{(x)} := \mathbb{E}_Y[Y(x)], \ x =0, 1, 2$. The expectations of potential outcome, i.e., the causal effect of $x=0$, is
+
+$$
+\theta^{(0)} := \mathbb{E}_Y[Y(0)] = \mathbb{E}_{(Y,U)}[Y(0,u)] = \mathbb{E}_{(\epsilon, U)}[f(0,u) + \epsilon] = \mathbb{E}_U[f(0,u)],
+$$
+
+and accordingly, for $x=1,2$,
+
+$$
+\theta^{(1)} := \mathbb{E}_Y[Y(1)] = \mathbb{E}_{(Y,U)}[Y(1,u)]= \mathbb{E}_U[f(1, u)], \\
+\theta^{(2)} := \mathbb{E}_Y[Y(2)] = \mathbb{E}_{(Y,U)}[Y(2,u)]= \mathbb{E}_U[f(2, u)].
+$$
+
+The observed outcome is then one of the potential outcomes:
+
+$$
+Y_i := \begin{cases}
+Y(0, u_i), \ \text{if } x_i=0; \\
+Y(1, u_i), \ \text{if } x_i=1; \\
+Y(2, u_i), \ \text{if } x_i=2.
+\end{cases}
+$$
+
+### 1.2 Propensity score model and inverse probability weighting estimate
+
+Propensity score is defined as the probability of being assigned to the current treatment (exposure) given the confounder. Mathematically,
+
+$$
+e_i := e_{x}(u_i) = \operatorname{Pr}(X_i = x | U_i = u_i), \quad x \in \{0, 1, 2\}, \forall i.
+$$
+
+Since there are more than 2 levels in $X$, we fit a multinomial logistic regression model to estimate the propensity score:
+
+$$
+\operatorname{Pr}(X = x|U=u) = \frac{e^{\beta_x \cdot u}}{\sum_{j=0}^2 e^{\beta_j \cdot u}}, \quad x = 0, 1, 2.
+$$
+
+Let $\hat{e}_i$ denote the estimated propensity score of individual $i$. Accordingly, the weight is $\hat{w}_i = 1 / \hat{e}_i$. The modified Horvitz-Thompson estimate of the ATE is:
+
+$$
+\hat{\mathbb{E}}[Y(x)] 
+= \frac{\sum_{\{i: x_i = x\}} \hat{w}_i Y_i}{\sum_{\{i: x_i = x\}} \hat{w}_i}
+= \frac{\sum_{i=1}^n \hat{w}_i \cdot \mathbb{I}[X_i = x] \cdot Y_i}{\sum_{i=1}^n \hat{w}_i \cdot \mathbb{I}[X_i = x]}
+, \quad x = 0, 1, 2.
+$$
+
+```{r}
+set.seed(123123)
+n <- 100
+
+# confounder
+U <- rnorm(n, mean = 0.5)
+
+# potential outcomes
+eps <- rnorm(n)
+ffunc <- function(.x, .u) return(.x + .u + .x*.u)
+Y2 <- ffunc(2, U) + eps
+Y1 <- ffunc(1, U) + eps
+Y0 <- ffunc(0, U) + eps
+EY2 <- mean(Y2)  ## theoretical: EY2 = 3.5
+EY1 <- mean(Y1)  ## theoretical: EY1 = 2
+EY0 <- mean(Y0)  ## theoretical: EY0 = 0.5
+
+# treatment assignment: multinomial logistic regression (softmax)
+## .sls: list of linear predictors (s). It should contain (K-1) lists, and the element of each list is an n-vector of the linear predictors of the k-th level (1 <= k < K)
+softmax <- function(.sls) {
+  K <- length(.sls) + 1  ## number of levels
+  
+  exps.mat <- sapply(.sls, exp)  ## exp(LinearPredictor), n by (K-1)
+  Z <- rowSums(exps.mat) + 1  ## denominator
+  
+  prob.mat <- cbind(1, exps.mat) / Z
+  return(prob.mat)
+}
+
+gamma.ls <- list(rnorm(2), rnorm(2, mean = -0.1))
+LinearPred.ls <- lapply(gamma.ls, function(.gm) .gm[1] + .gm[2]*U)
+probs <- softmax(LinearPred.ls)
+X <- t(apply(probs, 1, function(pr) {rmultinom(1, 1, prob = pr)})) ## n by K
+
+# observed outcome
+Y <- X[,(0+1)] * Y0 + X[,(1+1)] * Y1 + X[,(2+1)] * Y2
+```
+
+```{r}
+# Inverse Probability Weighting
+
+## Propensity score model: multinomial logistic regression model
+library(nnet)
+mn.fit <- multinom(X ~ U)
+ProbPred <- predict(mn.fit, type = "probs")
+
+# par(mfrow=c(1,3))
+# for (j in 1 : 3) {
+#   plot(probs[,j], ProbPred[,j], 
+#        xlab = paste( "True prob of class", (j-1) ),
+#        ylab = paste( "Predicted prob of class", (j-1)) )
+#   abline(a=0, b=1)
+# }
+
+probs.obs <- rowSums(X * probs)
+ProbPred.obs <- rowSums(X * ProbPred)
+plot(probs.obs, ProbPred.obs, 
+     xlab = "True prob of observed class",
+     ylab = "Predicted prob of observed class")
+abline(a=0, b=1)
+
+W <- 1 / ProbPred.obs
+estEY0 <- sum(W * X[,(0+1)] * Y) / sum(W * X[,(0+1)])
+estEY1 <- sum(W * X[,(1+1)] * Y) / sum(W * X[,(1+1)])
+estEY2 <- sum(W * X[,(2+1)] * Y) / sum(W * X[,(2+1)])
+```
+
+```{r}
+#| message: false
+#| echo: false
+
+# ind <- sample.int(n, size = 20)
+ind <- 1 : n
+
+arrow_df <- data.frame(Y = Y[ind], U = U[ind], 
+                       Y0 = Y0[ind], Y1 = Y1[ind], Y2 = Y2[ind]) %>%
+  mutate(X = as.factor( apply( X[ind,], 1, 
+                               function(.r) .r %*% as.matrix(0:2) )) )
+point_df <- arrow_df %>% 
+  mutate(W = W[ind]) %>%
+  pivot_longer(cols = Y0:Y2, 
+               values_to = "PO_val", names_to = "PO_name") %>%
+  mutate(Y_PO_name = paste0("Y", X))
+
+ggplot() +
+  geom_segment(data = arrow_df,
+               aes(x = U, xend = U, y = Y0, yend = Y2),
+               color = "gray", alpha = 0.2) +
+  geom_point(data = point_df, 
+             aes(x = U, y = PO_val, color = PO_name), 
+             size = 2, alpha = 0.3) + 
+  geom_point(data = point_df, 
+             aes(x = U, y = Y, color = Y_PO_name), size = 3) +
+  labs(x = "Confounder", y = "Outcome", color = "Exposure", 
+       title = "What we want to see:") + 
+  scale_color_discrete(labels = c("0", "1", "2")) + 
+  theme_light()
+```
+
+```{r, echo=F}
+ggplot() +
+  geom_point(data = point_df, aes(x = U, y = Y, color = X), size = 3) +
+  labs(x = "Confounder", y = "Outcome", color = "Exposure", 
+       title = "What we observe:") + 
+  scale_colour_discrete(labels = c("0", "1", "2")) + 
+  theme_light()
+```
+
+```{r}
+#| echo: false
+
+line_df <- data.frame(X = as.factor(c("0", "1", "2")), 
+                      EY = c(EY0, EY1, EY2), 
+                      estEY = c(estEY0, estEY1, estEY2)) %>%
+  pivot_longer(cols = EY:estEY, names_to = "class") %>%
+  mutate(class = as.factor(class))
+
+ggplot() +
+  geom_hline(data = line_df, aes(yintercept = value, color = X, 
+                                 linetype = fct_rev(class)),
+             alpha = 0.8) + 
+  geom_point(data = point_df, aes(x = U, y = Y, color = X, 
+                                  size = W)) +
+  labs(x = "Confounder", y = "Observed outcome", color = "Exposure", 
+       linetype = "", size = "Weight", 
+       title = "Weighted by inverse of propensity score:") + 
+  scale_size(range = c(1, 5)) +
+  scale_colour_discrete(labels = c("0", "1", "2")) + 
+  scale_linetype_discrete(labels = c("Mean EpY", "IPW Estimate")) +
+  theme_light()
+```
+
+------------------------------------------------------------------------
+
+## 2. Identification assumptions for multiple exposures
+
+> [Wang, Yixin, and David M. Blei. "The blessings of multiple causes." Journal of the American Statistical Association 114.528 (2019): 1574-1596.](https://arxiv.org/pdf/1805.06826)
+
+The definition of the (additive) potential outcome model is given by:
+
+$$
+Y_i(\mathbf{x}_i, u_i) = \sum_{j=1}^p f_j(x_{ij}, u_i) + \epsilon_i, \epsilon_i \sim \mathcal{P}, \mathbb{E}[\epsilon] = 0,
+$$
+
+where $x_{ij} \in \{0,1,2\} \ (\forall i,j)$, $f_j(x_j, u)$ is the joint effect of $X_j$ and $U$.
+
+We use the same identification assumptions.
+
+**Definition (Weak unconfoundedness) (Imbens 2020)**. The assigned causes are weakly unconfounded given $U_i$ if
+
+$$
+(X_{i1}, \ldots, X_{ip}) \perp\!\!\perp Y_i(\mathbf{x}) | U_i
+$$
+
+for all $(x_1, \ldots,x_p) \in \mathcal{X}_1 \otimes \cdots \otimes \mathcal{X}_p$, and $i=1, \ldots, n$.
+
+**Definition (No unobserved single-cause confounders)**. Denote $V_i$ are the observed covariates. There are no unobserved single-cause confounders for the assigned exposures $X_{i1}, \ldots, X_{ip}$ if, for $j=1, \ldots, p$,
+
+1.  There exist some random variable $U_{ij}$ such that
+
+    $$
+    X_{ij} \perp Y_i(\mathbf{x}) | V_i, U_{ij}, \\
+    X_{ij} \perp X_{i, -j} | U_{ij},
+    $$
+
+    where $X_{i, -j} = \{X_{i1}, \ldots, X_{ip}\} \backslash X_{ij}$ is the complete set of $p$ exposures excluding the $j$th exposure;
+
+2.  There exists no proper subset of the sigma algebra $\sigma(U_{ij})$ satisfies the second equation in 1.
+
+That is, $U_{ij}$ refers to the multiple-cause confounders that affect the $j$th exposure $X_{ij}$.
+
+...
+
+**Theorem (Identification of the average causal effect of all the exposures)**. Assume SUTVA, no unobserved single-cause confounders, and consistency of substitute confounders...
+
+The conditions that make this theorem holds seem inappropriate to our method. (??!)
+
+This is because our model definition is different than Wang's. We assume the exposure effects are additive, but the relationship between each exposure and the confounder are assumed nonparametrically.
+
+*Double check needed*.
+
+------------------------------------------------------------------------
+
+## 3. How to quantify the causal effects?
+
+Assume $(X_{i1}, \ldots, X_{ip})$ are the exposure assignment of the $i$th unit.
+
+Suppose the identification assumptions hold. Specifically, the no unobserved confounder assumption is: given the confounder (or confounders) $U_i$, we assume
+
+$$
+(X_{i1}, \ldots, X_{ip}) \perp\!\!\perp Y_i(\mathbf{x}) | U_i, (??!) \\
+X_{ij} \perp\!\!\perp X_{i, -j} | U_i. 
+$$
+
+The definition of the (additive) potential outcome model is given by:
+
+$$
+Y_i(\mathbf{x}_i, u_i) = \sum_{j=1}^p f_j(x_{ij}, u_i) + \epsilon_i, \epsilon_i \overset{\text{ind.}}{\sim} \mathcal{P}, \mathbb{E}[\epsilon] = 0,
+$$
+
+where $x_{ij} \in \{0,1,2\} \ (\forall i,j)$, $f_j(x, u)$ is the joint effect of the $j$th exposure $X_j$ and the confounder $U$, and the random error $\epsilon_i$ is independent of $(X_{i1}, \ldots, X_{ip}, U_i)$.
+
+According to the identification assumptions, the average causal effect $\mathbb{E}_Y[Y(\mathbf{x})]$ for $\mathbf{x}=(x_1, \ldots, x_p)$ can be computed by
+
+$$
+\mathbb{E}_Y[Y(\mathbf{x})] = \mathbb{E}_{(Y,U)}[Y(\mathbf{x}, u)] \\
+= \mathbb{E}_U \{ \mathbb{E}_Y[Y(\mathbf{x}, u)] \} \\
+= \mathbb{E}_U \left\{ \mathbb{E}_{\epsilon} \left[\sum_{j=1}^p f_j (x_j, u) + \epsilon \right] \right\} \\
+= \sum_{j=1}^p\mathbb{E}_U \left[ f_j(x_j, u)\right].
+$$
+
+Denote $\theta^{(x)}_{j} := \mathbb{E}_U[f_j(x, u)]$ be the expectation of the causal effect of the $j$th exposure. Then the equations above can be simplified as
+
+$$
+\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p\theta_j^{(x_j)} = \sum_{j=1}^p \left\{ \theta_j^{(0)} \cdot \mathbb{I}[x_j=0] + \theta_j^{(1)} \cdot \mathbb{I}[x_j=1] + \theta_j^{(2)} \cdot \mathbb{I}[x_j=2] \right\}.
+$$In other words, $\theta_j^{(x)}$ is regarded as the expectation of marginal causal effect of the $j$th exposure.
+
+### 3.2 Encoding categorical exposures
+
+Suppose $X_j \in \{0,1,2\}$.
+
+#### Version 1: "tranditional" dummy variables 
+
+For a 3-level categorical variable, we create 2 dummy variables:
+
+$$
+X_j \Rightarrow \left[X_j^{(1)}, \ X_j^{(2)} \right], \\
+X_j^{(1)} = \begin{cases} 1, \text{ if } X_j = 1 \\ 0, \text{ otherwise}  \end{cases}, \quad 
+X_j^{(2)} = \begin{cases} 1, \text{ if } X_j = 2 \\ 0, \text{ otherwise}  \end{cases},
+$$
+
+To be more specific,
+
+$$
+X_j = 0 \Rightarrow [0, \ 0]; \\
+X_j = 1 \Rightarrow [1, \ 0]; \\
+X_j = 2 \Rightarrow [0, \ 1].
+$$
+
+Moreover, denote $\Delta_j^{(1)} = \theta_j^{(1)} - \theta_j^{(0)}$ and $\Delta_j^{(2)} = \theta_j^{(2)} - \theta_j^{(0)}$, which represent the average treatment effects of $X_j=1$ and $X_j=2$ versus $X_j=0$, respectively. The average causal effect equation in Section 3 is equivalent to:
+
+$$
+\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p \left\{ \theta_j^{(0)} + \Delta_j^{(1)}\cdot X_j^{(1)} + \Delta_j^{(2)} \cdot X_j^{(2)} \right\}.
+$$
+
+#### Version 2: one-hot encoding
+
+For a 3-level categorical variable, we create three indicators to represent the level of $X_j$:
+
+$$
+X_j \Rightarrow \left[X_j^{(0)}, \ X_j^{(1)}, \ X_j^{(2)} \right], \\
+X_j^{(0)} = \begin{cases} 1, \text{ if } X_j = 0 \\ 0, \text{ otherwise}  \end{cases}, \quad 
+X_j^{(1)} = \begin{cases} 1, \text{ if } X_j = 1 \\ 0, \text{ otherwise}  \end{cases}, \quad 
+X_j^{(2)} = \begin{cases} 1, \text{ if } X_j = 2 \\ 0, \text{ otherwise}  \end{cases},
+$$
+
+To be more specific,
+
+$$
+X_j = 0 \Rightarrow [1, \ 0, \ 0]; \\
+X_j = 1 \Rightarrow [0, \ 1, \ 0]; \\
+X_j = 2 \Rightarrow [0, \ 0, \ 1].
+$$
+
+Still use $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ to denote the average treatment effects. Then the average causal effect equation is equivalent to:
+
+$$
+\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p \left\{ \theta_j^{(0)} \cdot X_j^{(0)} + \left(\Delta_j^{(1)} + \theta_j^{(0)} \right) \cdot X_j^{(1)} + \left(\Delta_j^{(2)} + \theta_j^{(0)} \right) \cdot X_j^{(2)} \right\}.
+$$
+
+#### Interpretation of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$
+
+(The y-axis does not reflect the true effect; it only represents the **relative relationships** between the three points.)
+
+-   If $X_j$ has an additive effect, then $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ are be significant and $\Delta_j^{(1)} \cdot \Delta_j^{(2)} > 0$ and $\left|\Delta_j^{(1)} \right| < \left| \Delta_j^{(2)} \right|$.
+
+```{r}
+#| echo: false
+ 
+data.frame(x = 0:2, 
+           y = 0:2) %>%
+  ggplot(aes(x = x, y = y)) + 
+  geom_point(size = 3) + 
+  geom_line(linetype = 2) + 
+  labs(x = "Exposure (X)", y = "Effect (theta)", 
+       title = "Additive effect") + 
+  theme_minimal()
+```
+
+-   If $X_j$ has an xor-like effect (reciprocal sign epistasis ?), then at least $\Delta_j^{(1)}$ is significant and $\left| \Delta_j^{(1)} \right| > \left|\Delta_j^{(2)} \right|$.
+
+```{r}
+#| echo: false
+
+data.frame(x = 0:2, 
+           y = c(0, 1, 0)) %>%
+  ggplot(aes(x = x, y = y)) + 
+  geom_point(size = 3) + 
+  geom_line(linetype = 2) + 
+  labs(x = "Exposure (X)", y = "Effect (theta)", 
+       title = "XOR effect (ver 1)") + 
+  theme_minimal()
+
+data.frame(x = 0:2, 
+           y = c(0, 2, 0.5)) %>%
+  ggplot(aes(x = x, y = y)) + 
+  geom_point(size = 3) + 
+  geom_line(linetype = 2) + 
+  labs(x = "Exposure (X)", y = "Effect (theta)", 
+       title = "XOR effect (ver 2?)") + 
+  theme_minimal()
+```
+
+-   If $X_j$ has a dominant effect, then $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ are significant and $\Delta_j^{(1)} = \Delta_j^{(2)}$.
+
+```{r}
+#| echo: false
+
+data.frame(x = 0:2, y = c(0, 1, 1)) %>%
+  ggplot(aes(x = x, y = y)) + 
+  geom_point(size = 3) + 
+  geom_line(linetype = 2) + 
+  labs(x = "Exposure (X)", y = "Effect (theta)", 
+       title = "Dominant effect") + 
+  theme_minimal()
+```
+
+-   If $X_j$ is a null variable, then $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ are insignificant.
+
+```{r}
+#| echo: false
+
+data.frame(x = 0:2, y = rep(0, times = 3)) %>%
+  ggplot(aes(x = x, y = y)) + 
+  geom_point(size = 3) + 
+  geom_line(linetype = 2) + 
+  labs(x = "Exposure (X)", y = "Effect (theta)", 
+       title = "Null effect") + 
+  theme_minimal()
+```
+
+In short, when identifying what type of effect $X_j$ has on the response, the baseline effect $\theta_j^{(0)}$ is trivial; what matters are the differences, i.e., $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$. If $X_j$ is not a null variable, then at least one of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ is significant.
+
+------------------------------------------------------------------------
+
+## 4. Causal SuSiE for multiple categorical exposures
+
+Following the additive potential outcome model defined above:
+
+$$
+Y_i(\mathbf{x}_i, u_i) = \sum_{j=1}^p \left(\theta_{j}^{(0)} + \Delta_j^{(1)} X_{ij}^{(1)} + \Delta_j^{(2)} X_{ij}^{(2)} \right) + \epsilon_i, 
+$$
+
+We use **version 1** encoding: two dummy variables representing one 3-level categorical exposures.
+
+Traditionally, $\left\{\theta_j^{(0)} \right\}_{j=1}^p$ are unidentifiable. However, in our case, we have a specific way to estimate them: inverse probability weighting. Meanwhile, the value of $\theta_j^{(0)}$ does not affect the significance of $X_j$.
+
+### 4.1 Variational inference
+
+Based on the interpretation of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ , we concentrate on these two coefficients.
+
+#### Prior distribution
+
+The assigned prior distribution of $\Delta^{(k)}, k=1,2$ is:
+
+$$
+\Delta^{(k)} \sim N \left(0, \left(\sigma_{0}^{(k)}\right)^2 \right).
+$$
+
+#### Single-effect regression model
+
+We assume that
+
+#### Convergence condition: ELBO?
+
+### 4.3 Selection criteria: posterior inclusion probability (PIP)
+
+The significance of exposure $X_j$ depends on the the "joint" significance of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$.
+
+The PIP of $X_j$ is:
+
+$$
+\operatorname{PIP}(X_j) = 1 - \left(1 - \operatorname{PIP}(\Delta_j^{(1)})  \right) \left(1 - \operatorname{PIP}(\Delta_j^{(2)})  \right).
+$$Then, exposures with high PIP are selected.
+
+### 
