@@ -59,7 +59,7 @@ Y0 <- ffunc(0, U) + eps
 (EY0 <- mean(Y0))  ## theoretical: EY0 = 0.5
 
 # treatment assignment
-expit <- function(.u) ifelse(.u > 0, 1/(1+exp(-.u)), exp(.u)/(1+exp(.u)))
+expit <- function(.s) ifelse(.s > 0, 1/(1+exp(-.s)), exp(.s)/(1+exp(.s)))
 probs <- expit(U)
 X <- rbinom(n, 1, probs)
 
@@ -159,10 +159,6 @@ $$
 >
 > [Li, Fan. “PROPENSITY SCORE WEIGHTING FOR CAUSAL INFERENCE WITH MULTIPLE TREATMENTS.” The Annals of Applied Statistics, vol. 13, no. 4, 2019, pp. 2389–415. JSTOR, https://www.jstor.org/stable/26866728.](https://www.jstor.org/stable/26866728)
 
-Start from the binary exposure case.
-
-Recall Figure 1 & 2.
-
 Extended from binary exposure case:
 
 Define the **generalized propensity score** as the probability of being assigned to treatment value $x$ given the confounder value $U=u$:
@@ -170,6 +166,8 @@ Define the **generalized propensity score** as the probability of being assigned
 $$
 e_x(u) = \operatorname{Pr}(X_i=x|U_i=u_i).
 $$The generalized propensity score can be estimated by any statistical models.
+
+See `2025-03-17.qmd`.
 
 ## 3. Identification assumptions for multiple exposures
 
