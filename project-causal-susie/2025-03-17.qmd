@@ -25,17 +25,17 @@ $$
 
 The function $f(x_i,u_i)$ is a function of exposure level $x_i$ and confounder $u_i$, and the random error $\epsilon_i$ is independent of exposure $x_i$ and the confounder $u_i$.
 
-Let $\theta^{(x)} := \mathbb{E}_Y[Y(x)], \ x =0, 1, 2$. The expectations of potential outcome, i.e., the causal effect of $x=0$, is
+Let $\theta_{(x)} := \mathbb{E}_Y[Y(x)], \ x =0, 1, 2$. The expectations of potential outcome, i.e., the causal effect of $x=0$, is
 
 $$
-\theta^{(0)} := \mathbb{E}_Y[Y(0)] = \mathbb{E}_{(Y,U)}[Y(0,u)] = \mathbb{E}_{(\epsilon, U)}[f(0,u) + \epsilon] = \mathbb{E}_U[f(0,u)],
+\theta_{(0)} := \mathbb{E}_Y[Y(0)] = \mathbb{E}_{(Y,U)}[Y(0,u)] = \mathbb{E}_{(\epsilon, U)}[f(0,u) + \epsilon] = \mathbb{E}_U[f(0,u)],
 $$
 
 and accordingly, for $x=1,2$,
 
 $$
-\theta^{(1)} := \mathbb{E}_Y[Y(1)] = \mathbb{E}_{(Y,U)}[Y(1,u)]= \mathbb{E}_U[f(1, u)], \\
-\theta^{(2)} := \mathbb{E}_Y[Y(2)] = \mathbb{E}_{(Y,U)}[Y(2,u)]= \mathbb{E}_U[f(2, u)].
+\theta_{(1)} := \mathbb{E}_Y[Y(1)] = \mathbb{E}_{(Y,U)}[Y(1,u)]= \mathbb{E}_U[f(1, u)], \\
+\theta_{(2)} := \mathbb{E}_Y[Y(2)] = \mathbb{E}_{(Y,U)}[Y(2,u)]= \mathbb{E}_U[f(2, u)].
 $$
 
 The observed outcome is then one of the potential outcomes:
@@ -296,9 +296,9 @@ Suppose $X_j \in \{0,1,2\}$.
 For a 3-level categorical variable, we create 2 dummy variables:
 
 $$
-X_j \Rightarrow \left[X_j^{(1)}, \ X_j^{(2)} \right], \\
-X_j^{(1)} = \begin{cases} 1, \text{ if } X_j = 1 \\ 0, \text{ otherwise}  \end{cases}, \quad 
-X_j^{(2)} = \begin{cases} 1, \text{ if } X_j = 2 \\ 0, \text{ otherwise}  \end{cases},
+X_j \Rightarrow \left[X_{j(1)}, \ X_{j(2)} \right], \\
+X_{j(1)} = \begin{cases} 1, \text{ if } X_j = 1 \\ 0, \text{ otherwise}  \end{cases}, \quad 
+X_{j(2)} = \begin{cases} 1, \text{ if } X_j = 2 \\ 0, \text{ otherwise}  \end{cases},
 $$
 
 To be more specific,
@@ -309,13 +309,13 @@ X_j = 1 \Rightarrow [1, \ 0]; \\
 X_j = 2 \Rightarrow [0, \ 1].
 $$
 
-Moreover, denote $\Delta_j^{(1)} = \theta_j^{(1)} - \theta_j^{(0)}$ and $\Delta_j^{(2)} = \theta_j^{(2)} - \theta_j^{(0)}$, which represent the average treatment effects of $X_j=1$ and $X_j=2$ versus $X_j=0$, respectively. The average causal effect equation in Section 3 is equivalent to:
+Moreover, denote $\Delta_{j(1)} = \theta_{j(1)} - \theta_{j(0)}$ and $\Delta_{j(2)} = \theta_{j(2)} - \theta_{j(0)}$, which represent the average treatment effects of $X_j=1$ and $X_j=2$ versus $X_j=0$, respectively. The average causal effect equation in Section 3 is equivalent to:
 
 $$
-\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p \left\{ \theta_j^{(0)} + \Delta_j^{(1)}\cdot X_j^{(1)} + \Delta_j^{(2)} \cdot X_j^{(2)} \right\}.
+\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p \left\{ \theta_{j(0)} + \Delta_{j(1)}\cdot X_j^{(1)} + \Delta_{j(2)} \cdot X_j^{(2)} \right\}.
 $$
 
-After all, to estimate $\left(\Delta_j^{(1)}, \Delta_j^{(2)} \right)$ , we need to estimate $\left(\theta_j^{(0)}, \theta_j^{(1)}, \theta_j^{(2)}\right)$. Then it turns to our second encoding version: one-hot encoding.
+After all, to estimate $\left(\Delta_{j(1)}, \Delta_{j(2)} \right)$ , we need to estimate $\left(\theta_{j(0)}, \theta_{j(1)}, \theta_{j(2)}\right)$. Then it turns to our second encoding version: one-hot encoding.
 
 #### Version 2: one-hot encoding
 
@@ -336,21 +336,21 @@ X_j = 1 \Rightarrow [0, \ 1, \ 0]; \\
 X_j = 2 \Rightarrow [0, \ 0, \ 1].
 $$
 
-Still use $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ to denote the average treatment effects. Then the average causal effect equation is equivalent to (just as the equation in the intro paragraphs of Section 3?):
+Still use $\Delta_{j(1)}$ and $\Delta_{j(2)}$ to denote the average treatment effects. Then the average causal effect equation is equivalent to (just as the equation in the intro paragraphs of Section 3?):
 
 $$
-\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p \left\{ \theta_j^{(0)} \cdot X_j^{(0)} + \theta_j^{(1)} \cdot X_j^{(1)} + \theta_j^{(2)} \cdot X_j^{(2)} \right\}.
+\mathbb{E}_Y[Y(\mathbf{x})] = \sum_{j=1}^p \left\{ \theta_{j(0)} \cdot X_j^{(0)} + \theta_{j(1)} \cdot X_j^{(1)} + \theta_{j(2)} \cdot X_j^{(2)} \right\}.
 $$
 
-Then, $\Delta_j^{(1)} = \theta_j^{(1)} - \theta_j^{(0)}$ and $\Delta_j^{(2)} = \theta_j^{(2)} - \theta_j^{(0)}$.
+Then, $\Delta_{j(1)} = \theta_{j(1)} - \theta_{j(0)}$ and $\Delta_{j(2)} = \theta_{j(2)} - \theta_{j(0)}$.
 
-#### Interpretation of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$
+#### Interpretation of $\Delta_{j(1)}$ and $\Delta_{j(2)}$
 
-(The y-axis does not reflect the true effect; it only represents the **relative relationships** between the three points.)
+-   The y-axis does not reflect the true effect; it only represents the **relative relationships** between the three points.)
 
-($\left(\Delta_j^{(1)}, \Delta_j^{(2)}\right)$ are the differences of points in y-axis! Not the slopes of lines between the two points)
+-   $(\Delta_{j(1)}, \Delta_{j(2)})$ are the differences of points in y-axis! Not the slopes of lines between the two points)
 
-1.  If $X_j$ has an additive effect, then $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ are be significant and $\Delta_j^{(1)} \cdot \Delta_j^{(2)} > 0$ and $\left|\Delta_j^{(1)} \right| < \left| \Delta_j^{(2)} \right|$.
+1.  If $X_j$ has an additive effect, then $\Delta_{j(1)}$ and $\Delta_{j(2)}$ are be significant and $\Delta_{j(1)} \cdot \Delta_{j(2)} > 0$ and $\left|\Delta_{j(1)} \right| < \left| \Delta_{j(2)} \right|$.
 
 ```{r}
 #| echo: false
@@ -365,7 +365,7 @@ data.frame(x = 0:2,
   theme_minimal()
 ```
 
-2.  If $X_j$ has an xor-like effect (reciprocal sign epistasis ?), then at least $\Delta_j^{(1)}$ is significant and $\left| \Delta_j^{(1)} \right| > \left|\Delta_j^{(2)} \right|$.
+2.  If $X_j$ has an xor-like effect (reciprocal sign epistasis ?), then at least $\Delta_{j(1)}$ is significant and $\left| \Delta_{j(1)} \right| > \left|\Delta_{j(2)} \right|$.
 
 ```{r}
 #| echo: false
@@ -389,7 +389,7 @@ data.frame(x = 0:2,
   theme_minimal()
 ```
 
-3.  If $X_j$ has a dominant effect, then $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ are significant and $\Delta_j^{(1)} = \Delta_j^{(2)}$.
+3.  If $X_j$ has a dominant effect, then $\Delta_{j(1)}$ and $\Delta_{j(2)}$ are significant and $\Delta_{j(1)} = \Delta_{j(2)}$.
 
 ```{r}
 #| echo: false
@@ -403,7 +403,7 @@ data.frame(x = 0:2, y = c(0, 1, 1)) %>%
   theme_minimal()
 ```
 
-4.  If $X_j$ is a null variable, then $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ are insignificant.
+4.  If $X_j$ is a null variable, then $\Delta_{j(1)}$ and $\Delta_{j(2)}$ are insignificant.
 
 ```{r}
 #| echo: false
@@ -417,7 +417,7 @@ data.frame(x = 0:2, y = rep(0, times = 3)) %>%
   theme_minimal()
 ```
 
-In short, when identifying what type of effect $X_j$ has on the response, the baseline effect $\theta_j^{(0)}$ is trivial; what matters are the differences, i.e., $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$. If $X_j$ is not a null variable, then at least one of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ is significant.
+In short, when identifying what type of effect $X_j$ has on the response, the baseline effect $\theta_{j(0)}$ is trivial; what matters are the differences, i.e., $\Delta_{j(1)}$ and $\Delta_{j(2)}$. If $X_j$ is not a null variable, then at least one of $\Delta_{j(1)}$ and $\Delta_{j(2)}$ is significant.
 
 ------------------------------------------------------------------------
 
@@ -426,39 +426,39 @@ In short, when identifying what type of effect $X_j$ has on the response, the ba
 Following the additive potential outcome model defined above:
 
 $$
-Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j}^{(0)} + \Delta_j^{(1)} X_{ij}^{(1)} + \Delta_j^{(2)} X_{ij}^{(2)} \right) + \epsilon_i, 
+Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \epsilon_i, 
 $$
 
 We use **version 1** encoding: two dummy variables representing one 3-level categorical exposures.
 
-Traditionally, $\left\{\theta_j^{(0)} \right\}_{j=1}^p$ are unidentifiable. However, in our case, we have a specific way to estimate them: inverse probability weighting. Meanwhile, the value of $\theta_j^{(0)}$ does not affect the significance of $X_j$.
+In our case, $\left\{\theta_{j(0)} \right\}_{j=1}^p$ are identifiable via inverse probability weighting. (? is it?) Meanwhile, the value of $\theta_{j(0)}$ does not affect the significance of $X_j$.
 
 ### 4.1 Variational inference
 
-Based on the interpretation of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$ , we concentrate on these two coefficients.
+Based on the interpretation of $\Delta_{j(1)}$ and $\Delta_{j(2)}$ , we concentrate on these two coefficients.
 
-#### The estimator and the corresponding SDs of $\Delta^{(k)}$
+#### The estimator and the corresponding SDs of $\Delta_{(k)}$
 
 Suppose there is only one $X$ (p=1). We consider the simple model as follows:
 
 $$
-Y_i(x_i) = \left(\theta^{(0)} + \Delta^{(1)} X_{ij}^{(1)} + \Delta^{(2)} X_{ij}^{(2)} \right) + \epsilon_i. 
+Y_i(x_i) = \left(\theta_{(0)} + \Delta_{(1)} X_{ij}^{(1)} + \Delta_{(2)} X_{ij}^{(2)} \right) + \epsilon_i. 
 $$
 
-Take $\Delta^{(1)}$ as an example. We first obtain the estimates of $\left(\theta^{(0)},\theta^{(1)} \right)$ by the IPW estimator:
+Take $\Delta_{(1)}$ as an example. We first obtain the estimates of $\left(\theta_{(0)},\theta_{(1)} \right)$ by the IPW estimator:
 
 $$
-\hat{\Delta}^{(1)} = \hat{\theta}^{(1)} - \hat{\theta}^{(0)},
+\hat{\Delta}_{(1)} = \hat{\theta}_{(1)} - \hat{\theta}_{(0)},
 $$
 
 The corresponding **variance** can be approximated by the following two ways:
 
-\(1\) **bootstrap variance** of $\tilde{\Delta}_B^{(1)} = \tilde{\theta}_{\text{B}}^{(1)} - \tilde{\theta}_{\text{B}}^{(0)}$, denoted as $s^2(\Delta^{(1)})$.
+\(1\) **bootstrap variance** of $\tilde{\Delta}_B^{(1)} = \tilde{\theta}_{\text{B}}^{(1)} - \tilde{\theta}_{\text{B}}^{(0)}$, denoted as $s^2(\Delta_{(1)})$.
 
 \(2\) the **variance formula** from the **two-sample t-test with unequal variance**: denote the bootstrap variance of $\hat{\theta}^{(1)}$ and $\hat{\theta}^{(0)}$ as $s^2(\theta^{(1)})$ and $s^2(\theta^{(0)})$, then the pooled variance formula is:
 
 $$
-s^2(\Delta^{(1)}) = \frac{s^{2}(\theta^{(0)})}{n_0} + \frac{s^{2}(\theta^{(1)})}{n_1}, 
+s^2(\Delta_{(1)}) = \frac{s^{2}(\theta_{(0)})}{n_0} + \frac{s^{2}(\theta_{(1)})}{n_1}, 
 $$
 
 where $n_0 := \# \{i: X_i =0\}$ and $n_1 := \# \{i: X_i = 1 \}$ are the sample sizes of each group.
@@ -524,34 +524,34 @@ print("tscore:")
 tscore_v2
 ```
 
-#### Continue: simple outcome model with one categorical variable 
+#### Continue: simple outcome model with one categorical variable
 
-The assigned prior distribution of $\Delta^{(k)}, k=1,2$ is:
-
-$$
-\Delta^{(k)} \sim N \left(0, \sigma_{0}^2 (\Delta^{(k)}) \right).
-$$
-
-Then the posterior distribution of $\Delta^{(k)}$ is :
+The assigned prior distribution of $\Delta_{(k)}, k=1,2$ is:
 
 $$
-\Delta^{(k)} | \mathbf{y}, \mathbf{x}, \hat{\mathbf{w}}, \sigma^2, \sigma^2_0 \sim \mathcal{N} \left(\mu_1(\Delta^{(k)}), \sigma_1^{2}(\Delta^{(k)}) \right), 
+\Delta_{(k)} \sim N \left(0, \sigma_{0}^2 (\Delta_{(k)}) \right).
+$$
+
+Then the posterior distribution of $\Delta_{(k)}$ is :
+
+$$
+\Delta_{(k)} | \mathbf{y}, \mathbf{x}, \hat{\mathbf{w}}, \sigma^2, \sigma^2_0 \sim \mathcal{N} \left(\mu_1(\Delta_{(k)}), \sigma_1^{2}(\Delta_{(k)}) \right), 
 $$
 
 where
 
 $$
-\sigma_1^2(\Delta^{(k)}) := \sigma_1^{2}(\mathbf{x, y, \hat{w}}; \sigma^2, \sigma^2_0)(\Delta^{(k)}) := \frac{1}{1/s^{2}(\Delta^{(k)}) + 1/\sigma_{0}^2 (\Delta^{(k)})}, \\
-\mu_1(\Delta^{(k)}) := \mu_1(\mathbf{x, y, \hat{w}}; \sigma^2, \sigma^2_0)(\Delta^{(k)}) := \frac{\sigma^2_1(\Delta^{(k)})}{s^2(\Delta^{(k)})} \times \hat{\Delta}^{(k)}. 
+\sigma_1^2(\Delta_{(k)}) := \sigma_1^{2}(\mathbf{x, y, \hat{w}}; \sigma^2, \sigma^2_0)(\Delta_{(k)}) := \frac{1}{1/s^{2}(\Delta_{(k)}) + 1/\sigma_{0}^2 (\Delta_{(k)})}, \\
+\mu_1(\Delta_{(k)}) := \mu_1(\mathbf{x, y, \hat{w}}; \sigma^2, \sigma^2_0)(\Delta_{(k)}) := \frac{\sigma^2_1(\Delta_{(k)})}{s^2(\Delta_{(k)})} \times \hat{\Delta}_{(k)}. 
 $$
 
-Just as the solutions of the previous steps. Accordingly, the approximate Bayes Factor (ABF) for whether $\Delta^{(k)}=0$ is
+Just as the solutions of the previous steps. Accordingly, the approximate Bayes Factor (ABF) for whether $\Delta_{(k)}=0$ is
 
 $$
-\operatorname{BF}(\Delta^{(k)}) = \sqrt{ \frac{s^2}{\sigma_0^2 + s^2} } \exp \left( \frac{z^2}{2} \times \frac{\sigma^2_0}{\sigma_0^2 + s^2} \right),
+\operatorname{BF}(\Delta_{(k)}) = \sqrt{ \frac{s^2}{\sigma_0^2 + s^2} } \exp \left( \frac{z^2}{2} \times \frac{\sigma^2_0}{\sigma_0^2 + s^2} \right),
 $$
 
-where each notation corresponds to its counterpart of $\Delta^{(k)}$, and $z^2 = \hat{\Delta}^2 / s^2$ is the square of z-score.
+where each notation corresponds to its counterpart of $\Delta_{(k)}$, and $z^2 = \hat{\Delta}^2 / s^2$ is the square of z-score.
 
 #### Single-effect regression
 
@@ -562,7 +562,7 @@ Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j}^{(0)} + \Delta_j^{(1)} X_{ij}^
 = \sum_{j=1}^p \left( \Delta^{(1)}_j X_{ij}^{(1)} + \Delta_j^{(2)} X_{ij}^{(2)} \right) + \sum_{j=1}^p \theta_j^{(0)} + \epsilon_i.
 $$
 
-Assume that each layer $l$ captures only one $\Delta_j^{(k)}, \ k=1,2$. Let $\boldsymbol{\Delta} =(\Delta_1^{(1)}, \Delta_1^{(2)}, \ldots, \Delta_p^{(1)}, \Delta_p^{(2)})$. The prior distribution assigned to $\boldsymbol{\Delta}$ is:
+Assume that each layer $l$ captures only one $\Delta_{j(k)}, \ k=1,2$. Let $\boldsymbol{\Delta} =(\Delta_{1(1)}, \Delta_{1(2)}, \ldots, \Delta_{p(1)}, \Delta_{p(2)}) \in \mathbb{R}^{2p}$. The prior distribution assigned to $\boldsymbol{\Delta}$ is:
 
 $$
 \boldsymbol{\Delta} = \delta \boldsymbol{\gamma}, \\
@@ -573,15 +573,22 @@ $$
 Then, accordingly, the posterior distribution of $\boldsymbol{\Delta}$ is given by
 
 $$
-\boldsymbol{\gamma}| \mathbf{X, y, \hat{W}}, , \sigma^2, \sigma^2_0 \sim \operatorname{Mult}(1, \boldsymbol{\alpha})
+\boldsymbol{\gamma}| \mathbf{X, y, \hat{W}}, \sigma^2, \sigma^2_0 \sim \operatorname{Mult}(1, \boldsymbol{\alpha}), \\
+\delta| \mathbf{X, y, \hat{W}}, \sigma^2, \sigma^2_0, \gamma_{j(k)} = 1 \sim \mathcal{N}(\mu_{1,j(k)}, \sigma_{1,j(k)}^2), 
 $$
 
-### 4.3 Select as a group: joint PIP of categorical $X_j$. 
+where $\boldsymbol{\alpha}$ is the vector of posterior inclusion probabilities (PIPs) ...
 
-The significance of exposure $X_j$ depends on the the "joint" significance of $\Delta_j^{(1)}$ and $\Delta_j^{(2)}$.
+***Messy notations....***
+
+### 4.3 Select as a group: joint PIP of categorical $X_j$.
+
+The significance of exposure $X_j$ depends on the the "joint" significance of $\Delta_{j(1)}$ and $\Delta_{j(2)}$.
 
 We define the PIP of $X_j$:
 
 $$
-\operatorname{PIP}(X_j) = 1 - \left(1 - \operatorname{PIP}(\Delta_j^{(1)})  \right) \left(1 - \operatorname{PIP}(\Delta_j^{(2)})  \right).
+\operatorname{PIP}(X_j) = 1 - \left(1 - \operatorname{PIP}(\Delta_{j(1)})  \right) \left(1 - \operatorname{PIP}(\Delta_{j(2)})  \right).
 $$Then, exposures $X_j$ with high PIP are selected.
+
+### 4.4 Convergence condition: ELBO? 
