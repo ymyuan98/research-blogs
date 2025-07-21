@@ -1,0 +1,136 @@
+---
+title: "15 April 2025"
+format: 
+  gfm:
+    html-math-method: webtex
+editor: visual
+bibliography: references.bib
+---
+
+## Recall ...
+
+Here, we discuss the following (additive) potential outcome model.
+
+$$
+Y_i(\mathbf{x}_i, u_i) = \sum_{j=1}^p f_j(x_{ij}, u_i) + \epsilon_i, \epsilon_i \sim \mathcal{N}(0,\sigma^2), 
+$$
+
+where $x_{ij} \in \{0,1,2\} \ (\forall i,j)$, $f_j(x_j, u)$ is the joint effect of $X_j$ and $U$.
+
+Assume the causal effects are identifiable under certain assumptions.
+
+As we proposed before, we can use approaches like IPW to estimate the causal effect of variable $X_j$ (for all $j$), and then the potential outcome model can be approximately expressed as
+
+$$
+Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \epsilon_i, \\
+=  \sum_{j=1}^p \left(\Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \left( \sum_{j=1}^p \theta_{j(0)} \right) + \epsilon_i, \epsilon_i \sim \mathcal{N}(0, \sigma^2),
+$$ {#eq-causal-model}
+
+where, for $j=1, \ldots, p$, $\theta_{j(k)} := \mathbb{E}_U[f_j(k, u)]$ are the marginal average causal effect of $X_j$ when $X_j=k \ (k=0,1,2)$, $\Delta_{j(k)} = \theta_{j(k)} - \theta_{j(0)}, \ (k=1,2)$ are the average treatment effects, and $X_{ij}^{(k)} := \mathbb{I}[X_{ij} = k], \ (k=1,2)$ are the dummy variables of $X_j$ of the $i$th individual.
+
+------------------------------------------------------------------------
+
+## 1. About the baseline effects (i.e., the intercept)
+
+In multiple regression case where there are more than one causal variable, we notice that the baseline effect $\theta_{j(0)}$ may not be estimated unbiasedly by $\hat{\theta}_{j(0)} = \frac{\sum_{i} w_i \mathbb{I}[X_{ij} = 0] Y_i}{\sum_{i} w_i \mathbb{I}[X_{ij} = 0]}$. This is probably because (what?) the response $Y$ also contains information of other causal variables and may mix the baseline effects of all causal variables.
+
+### 1.1 When should we deal with the baseline effects?
+
+Whether the estimated $\theta_{j(0)}$ is unbiased or not seems not to affect the estimation of $\Delta_{j(k)}$ as the corresponding estimation of $\theta_{j(k)}$ is biased as well.
+
+I think the value of $\theta_{(0)} := \sum_{j=1}^p \theta_{j(0)}$ only matters when computing the log-likelihood function and estimating the residual variance.
+
+### 1.2 Baseline effects as the intercept
+
+If we treat $\theta_{(0)} := \sum_{j=1}^p \theta_{j(0)}$ as the intercept term of the model, then, the intercept can be estimated by
+
+$$
+\tilde{\theta}_{(0)} = \bar{Y} - \sum_{j=1}^p \left( \tilde{\Delta}_{j(1)} \bar{X}_{j}^{(1)} + \tilde{\Delta}_{j(2)} \bar{X}_j^{(2)} \right),
+$$
+
+where $\tilde{a}$ refers to the posterior mean of parameter $a$, and $\bar{b}$ refers to the mean of vector $b$.
+
+In the context of the sum of causal-SER model, we estimate $\theta_{(0)}$ via
+
+$$
+\tilde{\theta}_{(0)} = \bar{Y} - \bar{\mathbf{X}}\left(\sum_{l=1}^L \tilde{\boldsymbol{\Delta}}_l \right),
+$$
+
+where $\bar{\mathbf{X}}$ is the vector of column-wise mean of $\mathbf{X}$.
+
+------------------------------------------------------------------------
+
+## 2. Log-likelihood function and its expectation
+
+The approximated linear model of the (observed) outcome is, using the newly defined notations,
+
+$$
+Y_i = \sum_{j=1}^p \left(\Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \theta_{(0)} + \epsilon_i, \epsilon_i \sim \mathcal{N}(0, \sigma^2).
+$$
+
+Therefore, the log-likelihood function is
+
+$$
+\ell(\mathbf{X}, \mathbf{Y}; \boldsymbol{\Delta}, \theta_{(0)}) = 
+-\frac{n}{2} \log 2\pi \sigma^2 -\frac{1}{2\sigma^2} \left[Y_i - \sum_{j=1}^p \left(\Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) - \theta_{(0)} \right]^2.
+$$
+
+Its expectation under the variational distribution $q(\boldsymbol{\Delta})$ is
+
+$$
+\mathbb{E}_{q}[\ell(\mathbf{X}, \mathbf{Y}; \boldsymbol{\Delta}, \theta_{(0)})] = -\frac{n}{2} \log 2\pi\sigma^2 - \frac{1}{2\sigma^2} \mathbb{E}_{q} \left[ \bigg\| Y_i - \sum_{j=1}^p \left(\Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) - \theta_{(0)} \bigg\|^2  \right],
+$$
+
+where the expected value of the second term is called the expected residual sum of squares (ERSS) under the variational approximation $q$.
+
+Following the notations of @wang, let
+
+$$
+\boldsymbol{\mu}_l = \left(\mathbf{X} - \mathbf{1}_n \bar{\mathbf{X}}^\top \right) \boldsymbol{\Delta}_l 
+$$
+
+indicate the linear combination of the $l$-th layer and let $\bar{\mu}_{li}:= \mathbb{E}_{q_l}[\mu_{li}]$ and $\bar{\mu^2_{li}} := \mathbb{E}_{q_l}[\mu_{li}]$.
+
+Then the (observed) outcome model is equivalent to
+
+$$
+Y_i - \bar{Y} = \sum_{l=1}^L \boldsymbol{\mu}_l + \epsilon_i, \ \epsilon_i \sim \mathcal{N}(0, \sigma^2). 
+$$
+
+Then,
+
+$$
+\text{ERSS}(\mathbf{y}, \bar{\boldsymbol{\mu}}, \bar{\boldsymbol{\mu}^2}) = \mathbb{E}_{q} \left[ \bigg\| 
+(\mathbf{Y} - \bar{Y}) - \sum_{l=1}^L \boldsymbol{\mu}_l \bigg\|^2  \right] \\
+= \bigg\| (\mathbf{Y} - \bar{Y}) - \sum_{l=1}^L \bar{\boldsymbol{\mu}}_l \bigg\|^2 + \sum_{l=1}^L \sum_{i=1}^n \operatorname{Var}[\mu_{li}], 
+$$
+
+where $\operatorname{Var}[\mu_{li}] = \bar{\mu^2_{li}} - \bar{\mu}_{li}^2$.
+
+------------------------------------------------------------------------
+
+## 3. Credible Sets (CS)
+
+**Definition**: a level $\rho$ credible set is defined to be a subset of **variables** that has probability $\rho$ or greater of containing at least one effect (categorical) variable, in which **at least one level has a non-zero effect**.
+
+------------------------------------------------------------------------
+
+## Preliminary summary of the causal variable selection method via inverse probability weighting
+
+The target of our proposed method is GWAS, in which each column, i.e., the value of each variant, of the dataset is either 0, 1, or 2.
+
+In general, we treat each variant as a categorical variable. We use the inverse probability weighting estimators combined with the SuSiE method to approximate the (posterior) distribution of the causal effects.
+
+However, the main challenge with the inverse probability weighting approach on the GWAS dataset is the **class imbalance**: for most variants, the number of samples in each class is likely to be highly imbalanced, i.e., a lot of samples are with $X_j=0$, whereas only a few samples are with $X_j=1$ or $X_j=2$. In this case, the estimation of the propensity score model can be tricky because there might be "perfect-fit" or "semi perfect-fit", i.e., the propensity score mode is not converged and most estimated probabilities are either 0 or 1. This is not a good sign, because it violates the positivity assumption, which may lead to biased and unstable estimation:
+
+**Positivity assumption**: For any combination of observed confounders, the probabilities of being assigned to any treatment group must be nonzero:
+
+Let $e_k(u) := \operatorname{Pr}(X=k|U=u), k=0, 1, 2$. Then
+
+$$
+0 < e_k(u) < 1, \ \forall k=0, 1, 2, \ u \in \mathcal{U}.
+$$
+
+### How to address this problem?
+
+We either deal with the class imbalance, or treat each variable as continuous ones.

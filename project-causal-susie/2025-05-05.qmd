@@ -1,0 +1,43 @@
+---
+title: "5 May 2025"
+subtitle: "Some struggles before sentencing the death of the causal susie project"
+format: 
+  gfm:
+    html-math-method: webtex
+editor: visual
+bibliography: references.bib
+---
+
+## Recall ...
+
+We aim to apply the proposed IPW based causal SuSiE method on GWAS dataset.
+
+The biggest challenge up to now is that, when treating each variant as a categorical variable, class imbalanced is inevitable: for some exposure variable $X$, many objects are with $X=0$, whereas only a few objects are with $X=1$ or $X=2$.
+
+The class imbalance brings trouble to estimating the propensity scores, i.e., $\operatorname{Pr}(X=k|U), k=0, 1, 2$.
+
+![An example of violation of the overlap assumption. Genotype data is used for the plot. It is clear that X5, X7 and X8 violates the overlap assumption.](images/example-violation-of-overlap.png){fig-align="center"}
+
+To address this problem, I guess there are two ways:
+
+-   \(1\) Apply this method on another dataset with less severe class imbalance.
+
+-   \(2\) Still treating each variant as categorical variables, but we use another causal inference method that avoids estimating the propensity score.
+
+-   \(3\) We no longer treat those variants as categorical variables. Instead, we treat them as continuous variables and assume they have additive effects.
+
+## Paper review
+
+### Topic 1: causal Inference on continuous treatments
+
+... Either by outcome regression model or generalized propensity score-based method.
+
+### Topic 2: causal Inference under class imbalance
+
+> [Calibrating doubly-robust estimators with unbalanced treatment assignment](https://arxiv.org/html/2403.01585v1)
+
+double machine learning?
+
+### Topic 3: causal Inference in GWAS
+
+> [Walker, Venexia M et al. “Phenotypic Causal Inference Using Genome-Wide Association Study Data: Mendelian Randomization and Beyond.” Annual review of biomedical data science vol. 5 (2022): 1-17. doi:10.1146/annurev-biodatasci-122120-024910](https://pmc.ncbi.nlm.nih.gov/articles/PMC7614231/)

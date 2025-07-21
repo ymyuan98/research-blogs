@@ -376,16 +376,7 @@ data.frame(x = 0:2,
   geom_point(size = 3) + 
   geom_line(linetype = 2) + 
   labs(x = "Exposure (X)", y = "Effect (theta)", 
-       title = "XOR effect (ver 1)") + 
-  theme_minimal()
-
-data.frame(x = 0:2, 
-           y = c(0, 2, 0.5)) %>%
-  ggplot(aes(x = x, y = y)) + 
-  geom_point(size = 3) + 
-  geom_line(linetype = 2) + 
-  labs(x = "Exposure (X)", y = "Effect (theta)", 
-       title = "XOR effect (ver 2?)") + 
+       title = "XOR effect") + 
   theme_minimal()
 ```
 
@@ -580,15 +571,3 @@ $$
 where $\boldsymbol{\alpha}$ is the vector of posterior inclusion probabilities (PIPs) ...
 
 ***Messy notations....***
-
-### 4.3 Select as a group: joint PIP of categorical $X_j$.
-
-The significance of exposure $X_j$ depends on the the "joint" significance of $\Delta_{j(1)}$ and $\Delta_{j(2)}$.
-
-We define the PIP of $X_j$:
-
-$$
-\operatorname{PIP}(X_j) = 1 - \left(1 - \operatorname{PIP}(\Delta_{j(1)})  \right) \left(1 - \operatorname{PIP}(\Delta_{j(2)})  \right).
-$$Then, exposures $X_j$ with high PIP are selected.
-
-### 4.4 Convergence condition: ELBO? 

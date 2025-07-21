@@ -1,0 +1,159 @@
+---
+title: "31 March 2025"
+format: 
+  gfm:
+    html-math-method: webtex
+editor: visual
+---
+
+## Recall ...
+
+Here, we discuss the following (additive) potential outcome model.
+
+$$
+Y_i(\mathbf{x}_i, u_i) = \sum_{j=1}^p f_j(x_{ij}, u_i) + \epsilon_i, \epsilon_i \sim \mathcal{N}(0,\sigma^2), 
+$$ {#eq-POmodel}
+
+where $x_{ij} \in \{0,1,2\} \ (\forall i,j)$, $f_j(x_j, u)$ is the joint effect of $X_j$ and $U$.
+
+Assume the causal effects are identifiable under certain assumptions.
+
+As we proposed before, we can use approaches like IPW to estimate the causal effect of variable $X_j$ (for all $j$), and then the potential outcome model can be approximately expressed as
+
+$$
+Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \epsilon_i, \ \epsilon_i \sim \mathcal{N}(0, \sigma^2),
+$$ {#eq-POmodel2}
+
+where, for $j=1, \ldots, p$, $\theta_{j(k)} := \mathbb{E}_U[f_j(k, u)]$ are the marginal average causal effect of $X_j$ when $X_j=k \ (k=0,1,2)$, $\Delta_{j(k)} = \theta_{j(k)} - \theta_{j(0)}, \ (k=1,2)$ are the average treatment effects, and $X_{ij}^{(k)} := \mathbb{I}[X_{ij} = k], \ (k=1,2)$ are the dummy variables of $X_j$ of the $i$th individual.
+
+------------------------------------------------------------------------
+
+## 1. Likelihood function and ELBO
+
+According to the SUVTA, we know that
+
+$$
+Y_i = Y_i(\mathbf{x}_i) \ \text{ if } \ \boldsymbol{X}_i = \mathbf{x}_i. 
+$$
+
+Therefore, according to the second equation above, the likelihood function of individual $i$ of the model is given by
+
+$$
+\mathcal{L}_i \left(y_i, \mathbf{x}_i \bigg| \left\{\theta_{j(0)}, \Delta_{j(1)}, \Delta_{j(2)} \right\}_{j=1}^{p} , \sigma^2 \right) :=
+\frac{1}{\sqrt{2\pi \sigma^2}} \exp \left\{-\frac{1}{2\sigma^2} \left[ y_i - \sum_{j=1}^p \left( \theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) \right]^2 \right\} 
+$$ {#eq-likelihood}
+
+That is, we go back to where we started: a linear regression model!
+
+We should be clear that the likelihood function is (only) a measure of how well the statistical model explains the observed data. It does not depends on how $\left\{\theta_{j(0)}, \Delta_{j(1)}, \Delta_{j(2)} \right\}_{j=1}^p$ and $\sigma^2$ are estimated and their variances.
+
+A few things to be discussed:
+
+1.  Should we include the estimated $\left\{\theta_{j(0)}\right\}$ when calculating the likelihood?
+
+    Based on the equation above, yes, we should. Mathematically, estimating $\theta_{j(0)}$ is not a difficult task because it is estimated via IPW, and it is an essential estimate for $\Delta_{j(k)}$. The hesitation is, after obtaining the IPW estimates $\hat{\Delta}_{j(k)}$, a Bayesian estimation is proceeded; that is, the estimation of $\Delta_{j(k)}$ in the output is actually the posterior mean, not the IPW estimate.
+
+2.  The likelihood function does not take part in the update processes in our method. It only serves as a part of measure of convergences(?). The update of parameters is determined by the updating equations.
+
+3.  If we don't consider the estimation of $\left\{ \theta_{j(0)} \right\}$ when computing the likelihood, would it be harmful to the convergence, i.e., would it make the likelihood unstable?
+
+------------------------------------------------------------------------
+
+## 2. Updating: Causal Single Effect Regression (Causal-SER) for categorical exposure
+
+Recall the potential outcome model @eq-POmodel and treat each $f_j(x_{j}, u)$ as a "weak learner". We approximate each "weak learner" using indicator functions
+
+$$
+f_j(x, u) \approx \theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)},
+$$ and accordingly, the potential outcome model can be represented by @eq-POmodel2.
+
+> Define the model well...
+
+$$
+Y_i = \sum_{j=1}^p \left(\Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \sum_{j=1}^p \theta_{j(0)} + \epsilon_i, \\ \epsilon_i \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2), \\
+\boldsymbol{\Delta} = (\Delta_{j(1)}, \ldots, \Delta_{j(K_j-1)})_{j=1}^p = \delta \boldsymbol{\gamma}, \\
+\delta \sim N(0, \sigma_0^2), \\
+\boldsymbol{\gamma} \sim \operatorname{Mult}(1, \boldsymbol{\pi}) \in \{0,1\}^{\sum_{j=1}^p K_j - p}.
+$$
+
+Here, $\boldsymbol{\gamma}$ is an indicator vector with only one non-zero entry, and $\boldsymbol{\pi}$ is the vector of prior inclusions probabilities of length $(\sum_{j=1}^p K_j - p)$.
+
+Let the input $\mathbf{X}$ a matrix of $p$ categorical variables, where each $X_j$ has $K_j$ levels. Suppose $k=0$ refers to the baseline level. We use one-hot encoding to encode each $X_j$, and denote the augmented input matrix as $\tilde{\mathbf{X}} \in \{0,1\}^{n\times (\sum_{j=1}^p K_j)}$. The mapping from $\mathbf{X}$ to $\tilde{\mathbf{X}}$ is: $\mathbf{X}_{.J} \mapsto \tilde{\mathbf{X}}_{.j_{\text{start}}:j_{\text{end}}}$, where $j_{\text{start}} := \left(\sum_{j=0}^{J-1} j\cdot K_j \right) + 1$ and $j_{\text{end}} := \sum_{j=0}^J j \cdot K_j$, and $\mathbb{I}[\mathbf{X}_{(i,J)} = k] \mapsto \tilde{\mathbf{X}}_{(i,j_{\text{start}}+k)}$.
+
+> Use the augmented input matrix $\tilde{\mathbf{X}}$ and the corresponding weight matrix $\mathbf{W}$. Then, treat the model as an ordinary (?) SER model, except that we estimate the coefficients, i.e., the average treatment effects, and the corresponding variances in a causal way.
+
+The following is the algorithm to fit the Causal-SER model ——
+
+**Input**
+
+-   Data $\tilde{\mathbf{X}}, \mathbf{y}$；
+
+-   Matrix of inverse probability weighting $\mathbf{W}$ (should be of the same size as $\tilde{\mathbf{X}}$);
+
+-   Prior variance of regression coefficient $\sigma_0^2$;
+
+-   Vector of prior inclusion probabilities $\boldsymbol{\pi} = \left(\pi_{j(1)}, \cdots, \pi_{j(K_j -1)} \right)_{j=1}^p$.
+
+**Output**
+
+-   Vector of posterior inclusion probabilities $\boldsymbol{\alpha} = \left( \alpha_{j(1)}, \ldots, \alpha_{j(K_j-1)} \right)_{j=1}^p$;
+
+-   Vector of posterior means $\boldsymbol{\mu_1} = \left(\mu_{1,j(1)}, \ldots, \mu_{1,j(K_j-1)} \right)_{j=1}^p$;
+
+-   Vector of posterior variance $\boldsymbol{\sigma}_1^2 = \left( \sigma_{1,j(1)}^2, \ldots, \sigma_{1, j(K_j-1)}^2 \right)_{j=1}^p$.
+
+**Algorithm**
+
+1.  Compute the IPW estimates $\left\{\hat{\theta}_{j(0)}, \cdots,\hat{\theta}_{j(K_j-1)} \right\}_{j=1}^p$ and then compute $\hat{\Delta}_{j(k)} = \hat{\theta}_{j(k)} - \hat{\theta}_{j(0)}, \ (k=1,\ldots, K_j-1)$.
+2.  Approximate the variances of $\left\{\hat{\Delta}_{j(1)}, \ldots, \hat{\Delta}_{j(K_j-1)} \right\}_{j=1}^{p}$, denoted by $\mathbf{s}^2 = \left(s_{j(1)}^2, \ldots, s_{j(K_j-1)}^2\right)_{j=1}^p$, via boostrapping or other available variance estimation approaches.
+3.  Compute the squared z-scores $z_{j(k)}^2 = \hat{\Delta}_{j(k)}^2 / s_{j(k)}^2, \ (k=1, \ldots, K_j-1)$.
+4.  Compute the posterior variances $\boldsymbol{\sigma}_1^2$;
+5.  Compute the posterior means $\boldsymbol{\mu}_1$;
+6.  Compute the Bayes Factors with each element $\operatorname{BF}$;
+7.  Compute the vector of posterior inclusion probabilities $\boldsymbol{\alpha}$.
+8.  Return $\boldsymbol{\alpha}$, $\boldsymbol{\mu}_1$, $\boldsymbol{\sigma}_1^2$.
+
+------------------------------------------------------------------------
+
+## 3. Any connections with Bayesian additive regression tree (BART)?
+
+Maybe ...
+
+Recall the potential outcome model @eq-POmodel and treat each $f_j(x_{j}, u)$ as a "weak learner".
+
+------------------------------------------------------------------------
+
+## 4. Continue: identification assumptions for multiple exposures
+
+...
+
+> [Wang, Yixin, and David M. Blei. "The blessings of multiple causes." Journal of the American Statistical Association 114.528 (2019): 1574-1596.](https://arxiv.org/pdf/1805.06826)
+
+We use the similar identification assumptions....
+
+**Definition (Weak unconfoundedness) (Imbens 2020)**. The assigned causes are weakly unconfounded given $U_i$ if
+
+$$
+(X_{i1}, \ldots, X_{ip}) \perp\!\!\perp Y_i(\mathbf{x}) | U_i
+$$
+
+for all $(x_1, \ldots,x_p) \in \mathcal{X}_1 \otimes \cdots \otimes \mathcal{X}_p$, and $i=1, \ldots, n$.
+
+**Definition (No unobserved single-cause confounders)**. Denote $V_i$ are the observed covariates. There are no unobserved single-cause confounders for the assigned exposures $X_{i1}, \ldots, X_{ip}$ if, for $j=1, \ldots, p$,
+
+1.  There exist some random variable $U_{ij}$ such that
+
+    $$
+    X_{ij} \perp Y_i(\mathbf{x}) | V_i, U_{ij}, \\
+    X_{ij} \perp X_{i, -j} | U_{ij},
+    $$
+
+    where $X_{i, -j} = \{X_{i1}, \ldots, X_{ip}\} \backslash X_{ij}$ is the complete set of $p$ exposures excluding the $j$th exposure;
+
+2.  There exists no proper subset of the sigma algebra $\sigma(U_{ij})$ satisfies the second equation in 1.
+
+That is, $U_{ij}$ refers to the multiple-cause confounders that affect the $j$th exposure $X_{ij}$.
+
+Our model definition is different than Wang's. We assume the exposure effects are additive, but the relationship between each exposure and the confounder are assumed nonparametrically.
+
+*Double check needed*.
