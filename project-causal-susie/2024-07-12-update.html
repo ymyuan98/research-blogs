@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.549">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Why did the previous toy examples fail?</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="why-fail_files/libs/clipboard/clipboard.min.js"></script>
+<script src="why-fail_files/libs/quarto-html/quarto.js"></script>
+<script src="why-fail_files/libs/quarto-html/popper.min.js"></script>
+<script src="why-fail_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="why-fail_files/libs/quarto-html/anchor.min.js"></script>
+<link href="why-fail_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="why-fail_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="why-fail_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="why-fail_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="why-fail_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="why-fail.pdf"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Why did the previous toy examples fail?</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="one-binary-treatment-one-confounding-factor" class="level2">
+<h2 class="anchored" data-anchor-id="one-binary-treatment-one-confounding-factor">One binary treatment + one confounding factor</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>expit <span class="ot">&lt;-</span> <span class="cf">function</span>(x) {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ifelse</span>(x <span class="sc">&gt;</span> <span class="dv">0</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(<span class="sc">-</span>x)), <span class="fu">exp</span>(x) <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="fu">exp</span>(x)))</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Suppose there are only one confounding factor that affects both the (only one) binary treatment and the outcome.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span>  <span class="do">## sample size</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>logit_prob <span class="ot">&lt;-</span> <span class="fl">1.2</span> <span class="sc">*</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>A <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">expit</span>(logit_prob))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>eps <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> <span class="fl">1.5</span> <span class="sc">*</span> A <span class="sc">+</span> <span class="dv">1</span> <span class="sc">*</span> L <span class="sc">+</span> eps</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Expectations of counterfactual outcomes</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Y0 <span class="ot">&lt;-</span>       <span class="dv">1</span> <span class="sc">*</span> L <span class="sc">+</span> eps</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>Y1 <span class="ot">&lt;-</span> <span class="fl">1.5</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">*</span> L <span class="sc">+</span> eps</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">"E[Y0]:"</span>, <span class="fu">mean</span>(Y0)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "E[Y0]: 0.0766063332350963"</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">paste</span>(<span class="st">"E[Y1]:"</span>, <span class="fu">mean</span>(Y1)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "E[Y1]: 1.5766063332351"</code></pre>
+</div>
+</div>
+<p><strong>Inverse Propensity Weighting</strong>:</p>
+<p>The modified Horvitz-Thompson estimator is given by</p>
+<p><span class="math display">\[
+\frac{\operatorname{E}\left[\frac{I(A=a)Y}{\operatorname{Pr}(A=a|L)} \right]}
+{\operatorname{E}\left[\frac{I(A=a)}{\operatorname{Pr}(A=a|L)} \right]}.
+\]</span></p>
+<p>The estimated version of it is given by:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>PS_mod <span class="ot">&lt;-</span> <span class="fu">glm</span>(A<span class="sc">~</span>L, <span class="at">family =</span> binomial)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>PS <span class="ot">&lt;-</span> <span class="fu">predict</span>(PS_mod, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">expit</span>(logit_prob), PS)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>(est_EY0 <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="dv">1</span><span class="sc">*</span>(A<span class="sc">==</span><span class="dv">0</span>) <span class="sc">*</span> Y <span class="sc">*</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS)) <span class="sc">/</span> <span class="fu">mean</span>(<span class="dv">1</span><span class="sc">*</span>(A<span class="sc">==</span><span class="dv">0</span>) <span class="sc">*</span> <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS)))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.06197887</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>(est_EY1 <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="dv">1</span><span class="sc">*</span>(A<span class="sc">==</span><span class="dv">1</span>) <span class="sc">*</span> Y <span class="sc">*</span> <span class="dv">1</span><span class="sc">/</span>PS) <span class="sc">/</span> <span class="fu">mean</span>(<span class="dv">1</span><span class="sc">*</span>(A<span class="sc">==</span><span class="dv">1</span>) <span class="sc">*</span> <span class="dv">1</span><span class="sc">/</span>PS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1.668617</code></pre>
+</div>
+</div>
+<p><strong>Weighted Least square</strong>:</p>
+<p>The estimated <span class="math inline">\(\hat{E}[Y|A=a] = \hat{\theta}_0+\hat{\theta}_1a\)</span> yielded from <span class="math inline">\(\sum_i \hat{W}_i [Y_i - (\theta_0 + \theta_1A_i)]^2\)</span> is equal to <span class="math inline">\(\frac{\sum_i \hat{W}_i Y_i}{\sum_i \hat{W}_i}\)</span> sum over all subject with <span class="math inline">\(A=a\)</span>, where <span class="math inline">\(\hat{W}_i = 1/\hat{\operatorname{Pr}}(A=a|L)\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>W <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(A<span class="sc">==</span><span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>PS, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS))</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>mod <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A, <span class="at">weights =</span> W)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = Y ~ A, weights = W)
+
+Weighted Residuals:
+    Min      1Q  Median      3Q     Max 
+-6.3653 -1.3650 -0.0131  1.1862  5.3237 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)  0.06198    0.08127   0.763    0.446    
+A            1.60664    0.11536  13.927   &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.82 on 498 degrees of freedom
+Multiple R-squared:  0.2803,    Adjusted R-squared:  0.2789 
+F-statistic:   194 on 1 and 498 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>Yhat <span class="ot">&lt;-</span> <span class="fu">predict</span>(mod)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>(EYhat_0 <span class="ot">&lt;-</span> <span class="fu">mean</span>(Yhat[A<span class="sc">==</span><span class="dv">0</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.06197887</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>(EYhat_1 <span class="ot">&lt;-</span> <span class="fu">mean</span>(Yhat[A<span class="sc">==</span><span class="dv">1</span>])) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1.668617</code></pre>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>Reminder</strong>: the weight is the inverse of <strong>the probability of a subject being assigned to the group A</strong>. Specifically, if <span class="math inline">\(A=0\)</span>, the weight should be <span class="math inline">\(1/(1-\operatorname{Pr}(A=1|L))\)</span>!!</p>
+</blockquote>
+<p><strong>Treatment Effect Estimation:</strong> The estimated treatment effect is the coefficient of <span class="math inline">\(A\)</span>, which is 1.60(0.11). It is unbiased.</p>
+<section id="centralized-version-weighted-linear-regression-without-the-intercept-term" class="level3">
+<h3 class="anchored" data-anchor-id="centralized-version-weighted-linear-regression-without-the-intercept-term">Centralized version: weighted linear regression without the intercept term</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>mod2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="fu">scale</span>(Y, <span class="at">scale =</span> F) <span class="sc">~</span> <span class="fu">scale</span>(A, <span class="at">scale =</span> F) <span class="sc">-</span> <span class="dv">1</span>, <span class="at">weights =</span> W)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = scale(Y, scale = F) ~ scale(A, scale = F) - 1, weights = W)
+
+Weighted Residuals:
+    Min      1Q  Median      3Q     Max 
+-6.3064 -1.3101  0.0349  1.2372  5.3995 
+
+Coefficients:
+                    Estimate Std. Error t value Pr(&gt;|t|)    
+scale(A, scale = F)   1.6119     0.1149   14.02   &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.819 on 499 degrees of freedom
+Multiple R-squared:  0.2827,    Adjusted R-squared:  0.2812 
+F-statistic: 196.6 on 1 and 499 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<p>Close to our expectation: i.e., the estimated coefficient of <span class="math inline">\(A\)</span> in the weighted least square model with an intercept.</p>
+</section>
+<section id="normalized-version" class="level3">
+<h3 class="anchored" data-anchor-id="normalized-version">Normalized version</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>mod3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(<span class="fu">scale</span>(Y) <span class="sc">~</span> <span class="fu">scale</span>(A) <span class="sc">-</span> <span class="dv">1</span>, <span class="at">weights =</span> W)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = scale(Y) ~ scale(A) - 1, weights = W)
+
+Weighted Residuals:
+    Min      1Q  Median      3Q     Max 
+-3.7608 -0.7813  0.0208  0.7378  3.2200 
+
+Coefficients:
+         Estimate Std. Error t value Pr(&gt;|t|)    
+scale(A)  0.47940    0.03419   14.02   &lt;2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.084 on 499 degrees of freedom
+Multiple R-squared:  0.2827,    Adjusted R-squared:  0.2812 
+F-statistic: 196.6 on 1 and 499 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<p>Well, since the independent and dependent variables are scaled, the estimated effect size is also the scaled.</p>
+<p>Suppose the estimated coefficient from the centralized model (without intercept) <code>mod2</code> is <span class="math inline">\(\hat{\beta}_1\)</span>, and the estimated coefficient from the scaled model (without intercept) <code>mod3</code> is <span class="math inline">\(\hat{\beta}_1^*\)</span>.</p>
+<p>Then,</p>
+<p><span class="math display">\[
+\hat{\beta}_1 = \hat{\beta}_1^* \frac{\sigma(Y)}{\sigma(A)}
+\]</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(mod3) <span class="sc">*</span> <span class="fu">sd</span>(Y) <span class="sc">/</span> <span class="fu">sd</span>(A)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>scale(A) 
+1.611855 </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="what-if-there-are-two-binary-treatments" class="level2">
+<h2 class="anchored" data-anchor-id="what-if-there-are-two-binary-treatments">What if there are two binary treatments?</h2>
+<p>Assume that there are two binary treatments <span class="math inline">\((A_1, A_2)\)</span> and both of them are confounded by the same confounding factor <span class="math inline">\(L\)</span>; the confounder <span class="math inline">\(L\)</span> affects the outcome <span class="math inline">\(Y\)</span> as well.</p>
+<p>Assume that correlation between <span class="math inline">\((A_1, A_2)\)</span> is relatively low.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">2024</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>L <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>logit_prob1 <span class="ot">&lt;-</span> <span class="fl">1.2</span><span class="sc">*</span>L <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>A1 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">expit</span>(logit_prob1))</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>logit_prob2 <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">1</span><span class="sc">*</span>L <span class="sc">+</span> <span class="fl">0.3</span> <span class="sc">*</span> <span class="fu">rnorm</span>(n)  </span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>A2 <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="fu">expit</span>(logit_prob2))</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cor</span>(logit_prob1, logit_prob2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -0.9296692</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cor</span>(A1, A2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -0.1606551</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>(coefs <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1]  1.0050260 -0.6163743 -1.3975726</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>esp2 <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> coefs[<span class="dv">1</span>]<span class="sc">*</span>A1 <span class="sc">+</span> coefs[<span class="dv">2</span>]<span class="sc">*</span>A2 <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>L <span class="sc">+</span> esp2</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co"># hist(Y)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><strong>How to define the counterfactual outcomes?</strong></p>
+<p>Define the counterfactual outcomes based on the joint distribution of treatments <span class="math inline">\((A_1, A_2)\)</span>.</p>
+<p>If there are two binary treatments, then <span class="math inline">\(2^2=4\)</span> combinations defines four counterfactual outcomes: <span class="math inline">\(\{Y(0,0), Y(0,1), Y(1,0), Y(1,1)\}\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># data.table(Y=Y, A1=A1, A2=A2)[, mean(Y), by = .(A1, A2)] </span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>dt_full <span class="ot">&lt;-</span> <span class="fu">data.table</span>(<span class="at">Y =</span> Y, </span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">A1 =</span> A1, </span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">A2 =</span> A2, </span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">Y00 =</span> coefs[<span class="dv">1</span>]<span class="sc">*</span><span class="dv">0</span> <span class="sc">+</span> coefs[<span class="dv">2</span>]<span class="sc">*</span><span class="dv">0</span> <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>L <span class="sc">+</span> esp2, </span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">Y10 =</span> coefs[<span class="dv">1</span>]<span class="sc">*</span><span class="dv">1</span> <span class="sc">+</span> coefs[<span class="dv">2</span>]<span class="sc">*</span><span class="dv">0</span> <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>L <span class="sc">+</span> esp2,</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">Y01 =</span> coefs[<span class="dv">1</span>]<span class="sc">*</span><span class="dv">0</span> <span class="sc">+</span> coefs[<span class="dv">2</span>]<span class="sc">*</span><span class="dv">1</span> <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>L <span class="sc">+</span> esp2,</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">Y11 =</span> coefs[<span class="dv">1</span>]<span class="sc">*</span><span class="dv">1</span> <span class="sc">+</span> coefs[<span class="dv">2</span>]<span class="sc">*</span><span class="dv">1</span> <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>L <span class="sc">+</span> esp2)</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>cols <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="fu">rep</span>(<span class="st">"EY"</span>, <span class="at">times =</span> <span class="dv">4</span>), <span class="fu">c</span>(<span class="st">"00"</span>, <span class="st">"10"</span>, <span class="st">"01"</span>, <span class="st">"11"</span>))</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>dt_full[,  .(<span class="fu">mean</span>(Y00), <span class="fu">mean</span>(Y10), <span class="fu">mean</span>(Y01), <span class="fu">mean</span>(Y11))] <span class="sc">|&gt;</span> <span class="fu">t</span>() <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>     [,1]
+V1 -0.030
+V2  0.975
+V3 -0.646
+V4  0.359</code></pre>
+</div>
+</div>
+<p><strong>How to evaluate the causal effects with the help of propensity scores?</strong></p>
+<p>Let us assume that there are not unobserved confounding factors. By this assumption, given confounding factor <span class="math inline">\(L\)</span>, the two treatments are (conditionally) independent:</p>
+<p><span class="math display">\[
+A_1 \perp\!\!\perp A_2 | L.
+\]</span></p>
+<p>Then, the joint propensity score of <span class="math inline">\(\mathbf{A}=(A_1, A_2)\)</span> given <span class="math inline">\(L\)</span> equals the multiplication of the two propensity scores. That is,</p>
+<p><span class="math display">\[
+\operatorname{Pr}(A_1=a_1, A_2=a_2 | L) =
+\operatorname{Pr}(A_1=a_1|L) \operatorname{Pr}(A_2=a_2|L)
+\]</span></p>
+<p><strong>Can I estimate the true causal effect of</strong> <span class="math inline">\(A_1\)</span> with its conditional independent propensity score <span class="math inline">\(Pr(A_1=a_1|L)\)</span> only?</p>
+<p>Let’s try.</p>
+<p>First is the inverse propensity score weighting.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>PS1_mod <span class="ot">&lt;-</span> <span class="fu">glm</span>(A1 <span class="sc">~</span> L, <span class="at">family =</span> binomial)</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>PS1 <span class="ot">&lt;-</span> <span class="fu">predict</span>(PS1_mod, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">expit</span>(logit_prob1), PS1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(PS1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.01061084 0.98389896</code></pre>
+</div>
+</div>
+<p>Inverse Propensity Weighting:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>W1 <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(A1<span class="sc">==</span><span class="dv">0</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS1), <span class="dv">1</span><span class="sc">/</span>PS1)</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(W1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1]  1.010725 20.354390</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>dt_full[, <span class="fu">c</span>(<span class="st">"W1"</span>, <span class="st">"W1Y"</span>) <span class="sc">:</span><span class="er">=</span> .(W1, W1<span class="sc">*</span>Y)]</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co"># head(dt_full, 2)</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>dt_full[, <span class="fu">sum</span>(W1Y) <span class="sc">/</span> <span class="fu">sum</span>(W1), by <span class="ot">=</span> A1]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   A1         V1
+1:  0 -0.3508271
+2:  1  0.6535281</code></pre>
+</div>
+</div>
+<p>Weighted least squares:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>mod_t2_a1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A1, <span class="at">weights =</span> W1)</span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod_t2_a1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = Y ~ A1, weights = W1)
+
+Weighted Residuals:
+     Min       1Q   Median       3Q      Max 
+-21.1183  -1.4643   0.0018   1.4853  13.8300 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) -0.35083    0.07472  -4.695 3.03e-06 ***
+A1           1.00436    0.10597   9.477  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 2.373 on 998 degrees of freedom
+Multiple R-squared:  0.08257,   Adjusted R-squared:  0.08165 
+F-statistic: 89.82 on 1 and 998 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(mod_t2_a1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %     97.5 %
+(Intercept) -0.4974487 -0.2042056
+A1           0.7963976  1.2123127</code></pre>
+</div>
+</div>
+<p>The 95% CI does contain the true causal effect size.</p>
+<p>Is it really a good estimation?</p>
+<p><strong>How about</strong> <span class="math inline">\(A_2\)</span>?</p>
+<p>Now take a look at the estimated marginal causal effect size of <span class="math inline">\(A_2\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>PS2_mod <span class="ot">&lt;-</span> <span class="fu">glm</span>(A2 <span class="sc">~</span> L, <span class="at">family =</span> binomial)</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>PS2 <span class="ot">&lt;-</span> <span class="fu">predict</span>(PS2_mod, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">expit</span>(logit_prob2), PS2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(PS2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.0472019 0.9570017</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>W2 <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(A2 <span class="sc">==</span> <span class="dv">0</span>, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS2), <span class="dv">1</span><span class="sc">/</span>PS2)</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>mod_t2_a2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A2, <span class="at">weights =</span> W2)</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod_t2_a2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = Y ~ A2, weights = W2)
+
+Weighted Residuals:
+     Min       1Q   Median       3Q      Max 
+-11.3565  -1.3199   0.0049   1.4555   9.9726 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)  0.37426    0.07045   5.313 1.33e-07 ***
+A2          -0.53279    0.09937  -5.362 1.02e-07 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 2.224 on 998 degrees of freedom
+Multiple R-squared:  0.028, Adjusted R-squared:  0.02702 
+F-statistic: 28.75 on 1 and 998 DF,  p-value: 1.025e-07</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(mod_t2_a2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %     97.5 %
+(Intercept)  0.2360236  0.5125029
+A2          -0.7277945 -0.3377938</code></pre>
+</div>
+</div>
+<p>The 95% CI always includes the true causal effect size.</p>
+<p>Is it a good estimation?</p>
+</section>
+<section id="what-if-the-confounding-factor-l-is-also-included-in-the-unweighted-linear-model" class="level2">
+<h2 class="anchored" data-anchor-id="what-if-the-confounding-factor-l-is-also-included-in-the-unweighted-linear-model">What if the confounding factor L is also included in the unweighted linear model?</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>mod_t2_a1_v2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A1 <span class="sc">+</span> L)</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod_t2_a1_v2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = Y ~ A1 + L)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-3.4066 -0.6863  0.0100  0.6704  3.8894 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) -0.28959    0.04874  -5.941  3.9e-09 ***
+A1           0.93000    0.07498  12.404  &lt; 2e-16 ***
+L           -1.27084    0.03815 -33.311  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.027 on 997 degrees of freedom
+Multiple R-squared:  0.532, Adjusted R-squared:  0.5311 
+F-statistic: 566.7 on 2 and 997 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>mod_t2_a2_v2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A2 <span class="sc">+</span> L)</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod_t2_a2_v2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = Y ~ A2 + L)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-3.6227 -0.7289 -0.0289  0.7362  3.2384 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)  0.40705    0.04997   8.145 1.13e-15 ***
+A2          -0.50057    0.07438  -6.730 2.86e-11 ***
+L           -1.13588    0.03786 -30.005  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.079 on 997 degrees of freedom
+Multiple R-squared:  0.4833,    Adjusted R-squared:  0.4822 
+F-statistic: 466.2 on 2 and 997 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>mod_all <span class="ot">&lt;-</span> <span class="fu">lm</span>(Y <span class="sc">~</span> A1 <span class="sc">+</span> A2 <span class="sc">+</span> L)</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod_all)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = Y ~ A1 + A2 + L)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-3.2477 -0.7032 -0.0270  0.6692  3.5962 
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) -0.03603    0.05716  -0.630    0.529    
+A1           0.95739    0.07285  13.142  &lt; 2e-16 ***
+A2          -0.54356    0.06878  -7.903 7.18e-15 ***
+L           -1.38778    0.03987 -34.804  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.9965 on 996 degrees of freedom
+Multiple R-squared:  0.5596,    Adjusted R-squared:  0.5583 
+F-statistic: 421.9 on 3 and 996 DF,  p-value: &lt; 2.2e-16</code></pre>
+</div>
+</div>
+<p>The 95% CI of the estimates:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb59"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb59-1"><a href="#cb59-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(mod_all)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %      97.5 %
+(Intercept) -0.1481926  0.07614024
+A1           0.8144343  1.10034189
+A2          -0.6785302 -0.40859611
+L           -1.4660305 -1.30953715</code></pre>
+</div>
+</div>
+<p>Compared with the true coefficients:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>coefs</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1]  1.0050260 -0.6163743 -1.3975726</code></pre>
+</div>
+</div>
+<p>The confidence intervals of <code>mod_all</code> include the true values.</p>
+<p>Seems good…</p>
+<section id="try-the-clamp-package" class="level4">
+<h4 class="anchored" data-anchor-id="try-the-clamp-package">Try the `clamp` package?</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Aggregate the input data</span></span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">as.matrix</span>(A1), <span class="fu">as.matrix</span>(A2))</span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">apply</span>(X, <span class="dv">2</span>, as.numeric)</span>
+<span id="cb63-4"><a href="#cb63-4" aria-hidden="true" tabindex="-1"></a><span class="do">## Inverse propensities as weights: </span></span>
+<span id="cb63-5"><a href="#cb63-5" aria-hidden="true" tabindex="-1"></a>Wmat <span class="ot">&lt;-</span> <span class="fu">cbind</span>(W1, W2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Run the <code>clamp</code> function:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>res_cl <span class="ot">&lt;-</span> <span class="fu">clamp</span>(X, Y, <span class="at">W =</span> Wmat, <span class="at">standardize=</span>F)</span>
+<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_cl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable PIP PostMean PostSD CI_lower CI_upper
+        1   1   1.0240 0.0446   0.9366   1.1114
+        2   1  -0.5755 0.0445  -0.6627  -0.4882</code></pre>
+</div>
+</div>
+<p>Well, looks good…..</p>
+</section>
+</section>
+<section id="another-example-a1-is-the-only-causal-variable" class="level2">
+<h2 class="anchored" data-anchor-id="another-example-a1-is-the-only-causal-variable">Another example: A1 is the only causal variable</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a>Y <span class="ot">&lt;-</span> coefs[<span class="dv">1</span>] <span class="sc">*</span> A1 <span class="sc">+</span> coefs[<span class="dv">3</span>] <span class="sc">*</span> L <span class="sc">+</span> <span class="fu">rnorm</span>(n)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>res_cl <span class="ot">&lt;-</span> <span class="fu">clamp</span>(X, Y, <span class="at">W =</span> Wmat, <span class="at">standardize =</span> F)</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_cl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable    PIP PostMean PostSD CI_lower CI_upper
+        1 1.0000   1.0532 0.0477   0.9597   1.1466
+        2 0.7924   0.0478 0.0409  -0.0324   0.1280</code></pre>
+</div>
+</div>
+<p>Alright, it looks good!</p>
+</section>
+<section id="a-more-complicated-example-more-treatments-and-only-a-few-of-them-are-causal-variables-the-synthetic-example-i-failed-last-time." class="level2">
+<h2 class="anchored" data-anchor-id="a-more-complicated-example-more-treatments-and-only-a-few-of-them-are-causal-variables-the-synthetic-example-i-failed-last-time.">A more complicated example: more treatments and only a few of them are causal variables (the synthetic example I failed last time).</h2>
+<p>Let <span class="math inline">\(p=10\)</span> and <span class="math inline">\(n=1000\)</span>.</p>
+<p>We simulate each input variable (treatment) <span class="math inline">\(X_j\)</span> with</p>
+<p><span class="math display">\[
+X_{ij}=1 \sim \operatorname{Bern}(\operatorname{expit}(L^*_{ij})),
+\]</span></p>
+<p>where we let the (observable) confounding factor <span class="math inline">\(U \sim N(0, 1^2)\)</span>, and the ture latent confounding factors of each subject <span class="math inline">\(U_{ij}\)</span> to be</p>
+<p><span class="math display">\[
+u^*_{ij}=\zeta_j u_i +\delta_{ij}, \ \delta_{ij} \sim N(0, 0.5^2)
+\]</span></p>
+<p>and the scalar <span class="math inline">\(\zeta_j = (j-5.5)/6\)</span>.</p>
+<p>For <span class="math inline">\(j=1, \ldots, 10\)</span>, we let</p>
+<p><span class="math display">\[
+g_j(t) = \frac{1}{1+\exp\left(- t\right)}
+\]</span></p>
+<p>This is to let logistic regression model catch the correct propensity score.</p>
+<p>The response is generated with</p>
+<p><span class="math display">\[
+y_i = \beta_{3} x_{i3} + \beta_{6} x_{i6} + \beta_{7} x_{i7} + \theta_{u} u_i + \epsilon_i, \ \epsilon_i \sim N(0, 1^2)
+\]</span></p>
+<p>where regression coefficients <span class="math inline">\(\beta_3, \beta_6, \beta_7, \theta_u\)</span> are randomly generated from the standard normal distribution.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb69"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a><span class="co"># set.seed(34567)</span></span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">202407</span>)</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb69-4"><a href="#cb69-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb69-5"><a href="#cb69-5" aria-hidden="true" tabindex="-1"></a>U <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb69-6"><a href="#cb69-6" aria-hidden="true" tabindex="-1"></a>zeta <span class="ot">&lt;-</span> ((<span class="dv">1</span><span class="sc">:</span>p) <span class="sc">-</span><span class="fl">5.5</span>) <span class="sc">/</span> <span class="dv">6</span></span>
+<span id="cb69-7"><a href="#cb69-7" aria-hidden="true" tabindex="-1"></a>delta <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>p, <span class="dv">0</span>, <span class="fl">0.5</span>), <span class="at">nrow=</span>n, <span class="at">ncol=</span>p)</span>
+<span id="cb69-8"><a href="#cb69-8" aria-hidden="true" tabindex="-1"></a>UU <span class="ot">&lt;-</span> <span class="fu">outer</span>(U, zeta) <span class="sc">+</span> delta</span>
+<span id="cb69-9"><a href="#cb69-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-10"><a href="#cb69-10" aria-hidden="true" tabindex="-1"></a>Pmat <span class="ot">&lt;-</span> <span class="fu">expit</span>(UU)  <span class="co"># Prob matrix</span></span>
+<span id="cb69-11"><a href="#cb69-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-12"><a href="#cb69-12" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>p, <span class="cf">function</span>(j) {<span class="fu">rbinom</span>(n, <span class="dv">1</span>, Pmat[,j])})</span>
+<span id="cb69-13"><a href="#cb69-13" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">apply</span>(X, <span class="dv">2</span>, as.double)</span>
+<span id="cb69-14"><a href="#cb69-14" aria-hidden="true" tabindex="-1"></a>esp <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb69-15"><a href="#cb69-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb69-16"><a href="#cb69-16" aria-hidden="true" tabindex="-1"></a>(coefs <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -0.7670351 -0.1115416  0.5488470  0.1583944</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb71"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> coefs[<span class="dv">1</span>]<span class="sc">*</span>X[,<span class="dv">3</span>] <span class="sc">+</span> coefs[<span class="dv">1</span>]<span class="sc">*</span>X[,<span class="dv">6</span>] <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>X[,<span class="dv">7</span>] <span class="sc">+</span> coefs[<span class="dv">4</span>]<span class="sc">*</span>U <span class="sc">+</span> esp  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Check the probability matrix:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb72"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the probability matrix</span></span>
+<span id="cb72-2"><a href="#cb72-2" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(<span class="fu">as.numeric</span>(Pmat))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-29-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb73"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(Pmat, <span class="dv">2</span>, <span class="cf">function</span>(x){<span class="fu">sum</span>(x<span class="sc">&lt;=</span> <span class="fl">0.1</span> <span class="sc">|</span> x <span class="sc">&gt;=</span> <span class="fl">0.9</span>)})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] 11  4  1  1  0  0  0  1  3 12</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="fu">min</span>(Pmat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.05836046</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb77"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(Pmat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.965558</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb79"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb79-1"><a href="#cb79-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(corrplot)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>corrplot 0.92 loaded</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb81"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb81-1"><a href="#cb81-1" aria-hidden="true" tabindex="-1"></a><span class="fu">corrplot</span>(<span class="fu">cor</span>(Pmat), <span class="at">method =</span> <span class="st">"number"</span>, <span class="at">type =</span> <span class="st">"upper"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-30-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="step-1-estimate-the-propensity-scores-and-construct-the-weight-matrix" class="level4">
+<h4 class="anchored" data-anchor-id="step-1-estimate-the-propensity-scores-and-construct-the-weight-matrix">Step 1: Estimate the propensity scores and construct the weight matrix</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb82"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a>PS <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> n, <span class="at">ncol =</span> p)</span>
+<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span> <span class="sc">:</span> p) {</span>
+<span id="cb82-3"><a href="#cb82-3" aria-hidden="true" tabindex="-1"></a>  PS[, j] <span class="ot">&lt;-</span> <span class="fu">predict</span>(<span class="fu">glm</span>(X[, j] <span class="sc">~</span> U, <span class="at">family =</span> binomial), <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb82-4"><a href="#cb82-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Check the propensity score matrix</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb83"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the probability matrix</span></span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(<span class="fu">as.numeric</span>(PS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-31-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb84"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb84-1"><a href="#cb84-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(PS, <span class="dv">2</span>, <span class="cf">function</span>(x){<span class="fu">sum</span>(x<span class="sc">&lt;=</span> <span class="fl">0.1</span> <span class="sc">|</span> x <span class="sc">&gt;=</span> <span class="fl">0.9</span>)})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] 0 0 0 0 0 0 0 0 0 3</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb86"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a><span class="fu">min</span>(PS)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.07327616</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb88"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb88-1"><a href="#cb88-1" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(PS)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.914246</code></pre>
+</div>
+</div>
+<p>Check the goodness-of-fit of the propensity score:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb90"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb90-1"><a href="#cb90-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">2</span>)) </span>
+<span id="cb90-2"><a href="#cb90-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span> <span class="sc">:</span> p) {</span>
+<span id="cb90-3"><a href="#cb90-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot</span>(PS[,j], Pmat[,j])  </span>
+<span id="cb90-4"><a href="#cb90-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/check%20ps-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The weight is not the inverse of the outcome of PS computed above! The computation above gives <span class="math inline">\(\operatorname{Pr}(X_j=1|U)\)</span>; for those with <span class="math inline">\(X_j=0\)</span>, its corresponding propensity score should be <span class="math inline">\(\operatorname{Pr}(X_j=0|U) = 1 - \operatorname{Pr}(X_j=1|U)\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb91"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb91-1"><a href="#cb91-1" aria-hidden="true" tabindex="-1"></a>Wmat <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(X <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>PS, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="step-2-plug-in-the-ipw-as-weights" class="level4">
+<h4 class="anchored" data-anchor-id="step-2-plug-in-the-ipw-as-weights">Step 2: plug in the IPW as weights</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb92"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a>res_cl3 <span class="ot">&lt;-</span> <span class="fu">clamp</span>(X, y, <span class="at">W =</span> Wmat, <span class="at">standardize =</span> F)</span>
+<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_cl3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable    PIP PostMean PostSD CI_lower CI_upper
+        3 1.0000  -0.7941 0.0451  -0.8826  -0.7057
+        6 1.0000  -0.6807 0.0452  -0.7693  -0.5921
+        7 1.0000   0.6168 0.0452   0.5283   0.7054
+        9 0.5449  -0.0508 0.0548  -0.1583   0.0566
+        2 0.0861   0.0047 0.0191  -0.0328   0.0422
+        8 0.0779   0.0040 0.0177  -0.0306   0.0386
+        4 0.0607   0.0026 0.0142  -0.0252   0.0305
+        1 0.0578  -0.0024 0.0136  -0.0290   0.0242
+       10 0.0393  -0.0009 0.0090  -0.0186   0.0168
+        5 0.0332  -0.0001 0.0072  -0.0142   0.0140</code></pre>
+</div>
+</div>
+</section>
+<section id="comparison-1-susie" class="level3">
+<h3 class="anchored" data-anchor-id="comparison-1-susie">Comparison 1: <code>susie</code></h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb94"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb94-1"><a href="#cb94-1" aria-hidden="true" tabindex="-1"></a>res_su3 <span class="ot">&lt;-</span> susieR<span class="sc">::</span><span class="fu">susie</span>(X, y, <span class="at">standardize=</span>F)</span>
+<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_su3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable PIP PostMean PostSD CI_lower CI_upper
+        3   1  -0.8259 0.0622  -0.9478  -0.7041
+        6   1  -0.6786 0.0619  -0.8000  -0.5572
+        7   1   0.6431 0.0619   0.5218   0.7645
+        1   0   0.0000 0.0000   0.0000   0.0000
+        2   0   0.0000 0.0000   0.0000   0.0000
+        4   0   0.0000 0.0000   0.0000   0.0000
+        5   0   0.0000 0.0000   0.0000   0.0000
+        8   0   0.0000 0.0000   0.0000   0.0000
+        9   0   0.0000 0.0000   0.0000   0.0000
+       10   0   0.0000 0.0000   0.0000   0.0000</code></pre>
+</div>
+</div>
+</section>
+<section id="comparison-2-conventional-pipeline-with-susie" class="level3">
+<h3 class="anchored" data-anchor-id="comparison-2-conventional-pipeline-with-susie">Comparison 2: conventional pipeline with <code>susie</code></h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb96"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a>resids <span class="ot">&lt;-</span> <span class="fu">residuals</span>(<span class="fu">lm</span>(y<span class="sc">~</span>U))</span>
+<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a>res_su4 <span class="ot">&lt;-</span> susieR<span class="sc">::</span><span class="fu">susie</span>(X, resids, <span class="at">standardize=</span>F)</span>
+<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_su4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable    PIP PostMean PostSD CI_lower CI_upper
+        3 1.0000  -0.7521 0.0631  -0.8757  -0.6285
+        6 1.0000  -0.6790 0.0629  -0.8022  -0.5558
+        7 1.0000   0.5909 0.0628   0.4678   0.7140
+        9 0.4785  -0.0585 0.0716  -0.1988   0.0819
+        2 0.1578   0.0145 0.0398  -0.0635   0.0926
+       10 0.0811  -0.0055 0.0240  -0.0525   0.0416
+        4 0.0555   0.0027 0.0169  -0.0304   0.0357
+        8 0.0400   0.0008 0.0115  -0.0218   0.0234
+        1 0.0375   0.0002 0.0105  -0.0204   0.0209
+        5 0.0374   0.0002 0.0105  -0.0204   0.0207</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="another-example-change-a-random-seed" class="level2">
+<h2 class="anchored" data-anchor-id="another-example-change-a-random-seed">Another example: (change a random seed!)</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb98"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">34567</span>)</span>
+<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">1000</span></span>
+<span id="cb98-4"><a href="#cb98-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb98-5"><a href="#cb98-5" aria-hidden="true" tabindex="-1"></a>U <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb98-6"><a href="#cb98-6" aria-hidden="true" tabindex="-1"></a>zeta <span class="ot">&lt;-</span> ((<span class="dv">1</span><span class="sc">:</span>p) <span class="sc">-</span><span class="fl">5.5</span>) <span class="sc">/</span> <span class="dv">6</span></span>
+<span id="cb98-7"><a href="#cb98-7" aria-hidden="true" tabindex="-1"></a>delta <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n<span class="sc">*</span>p, <span class="dv">0</span>, <span class="fl">0.5</span>), <span class="at">nrow=</span>n, <span class="at">ncol=</span>p)</span>
+<span id="cb98-8"><a href="#cb98-8" aria-hidden="true" tabindex="-1"></a>UU <span class="ot">&lt;-</span> <span class="fu">outer</span>(U, zeta) <span class="sc">+</span> delta</span>
+<span id="cb98-9"><a href="#cb98-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-10"><a href="#cb98-10" aria-hidden="true" tabindex="-1"></a>Pmat <span class="ot">&lt;-</span> <span class="fu">expit</span>(UU)  <span class="co"># Prob matrix</span></span>
+<span id="cb98-11"><a href="#cb98-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-12"><a href="#cb98-12" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>p, <span class="cf">function</span>(j) {<span class="fu">rbinom</span>(n, <span class="dv">1</span>, Pmat[,j])})</span>
+<span id="cb98-13"><a href="#cb98-13" aria-hidden="true" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">apply</span>(X, <span class="dv">2</span>, as.double)</span>
+<span id="cb98-14"><a href="#cb98-14" aria-hidden="true" tabindex="-1"></a>esp <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(n)</span>
+<span id="cb98-15"><a href="#cb98-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb98-16"><a href="#cb98-16" aria-hidden="true" tabindex="-1"></a>(coefs <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="dv">4</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -1.61068152 -1.61325263  0.09128208 -1.59480447</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb100"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb100-1"><a href="#cb100-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> coefs[<span class="dv">1</span>]<span class="sc">*</span>X[,<span class="dv">3</span>] <span class="sc">+</span> coefs[<span class="dv">1</span>]<span class="sc">*</span>X[,<span class="dv">6</span>] <span class="sc">+</span> coefs[<span class="dv">3</span>]<span class="sc">*</span>X[,<span class="dv">7</span>] <span class="sc">+</span> coefs[<span class="dv">4</span>]<span class="sc">*</span>U <span class="sc">+</span> esp  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Check the correlation of probabilities:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb101"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb101-1"><a href="#cb101-1" aria-hidden="true" tabindex="-1"></a><span class="fu">corrplot</span>(<span class="fu">cor</span>(Pmat), <span class="at">method =</span> <span class="st">"number"</span>, <span class="at">type =</span> <span class="st">"upper"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-37-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="step-1-estimate-the-propensity-scores-and-construct-the-weight-matrix-1" class="level4">
+<h4 class="anchored" data-anchor-id="step-1-estimate-the-propensity-scores-and-construct-the-weight-matrix-1">Step 1: Estimate the propensity scores and construct the weight matrix</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb102"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb102-1"><a href="#cb102-1" aria-hidden="true" tabindex="-1"></a>PS <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="at">nrow =</span> n, <span class="at">ncol =</span> p)</span>
+<span id="cb102-2"><a href="#cb102-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span> <span class="sc">:</span> p) {</span>
+<span id="cb102-3"><a href="#cb102-3" aria-hidden="true" tabindex="-1"></a>  PS[, j] <span class="ot">&lt;-</span> <span class="fu">predict</span>(<span class="fu">glm</span>(X[, j] <span class="sc">~</span> U, <span class="at">family =</span> binomial), <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb102-4"><a href="#cb102-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Check the propensity score matrix</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb103"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb103-1"><a href="#cb103-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the probability matrix</span></span>
+<span id="cb103-2"><a href="#cb103-2" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(<span class="fu">as.numeric</span>(PS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-38-1.png" class="img-fluid figure-img" width="576"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb104"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="fu">apply</span>(PS, <span class="dv">2</span>, <span class="cf">function</span>(x){<span class="fu">sum</span>(x<span class="sc">&lt;=</span> <span class="fl">0.1</span> <span class="sc">|</span> x <span class="sc">&gt;=</span> <span class="fl">0.9</span>)})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> [1] 1 0 0 0 0 0 0 0 0 3</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb106"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb106-1"><a href="#cb106-1" aria-hidden="true" tabindex="-1"></a><span class="fu">min</span>(PS)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.0777127</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb108"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb108-1"><a href="#cb108-1" aria-hidden="true" tabindex="-1"></a><span class="fu">max</span>(PS)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.921642</code></pre>
+</div>
+</div>
+<p>Check the goodness-of-fit of the propensity score:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb110"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb110-1"><a href="#cb110-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">2</span>)) </span>
+<span id="cb110-2"><a href="#cb110-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (j <span class="cf">in</span> <span class="dv">1</span> <span class="sc">:</span> p) {</span>
+<span id="cb110-3"><a href="#cb110-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot</span>(PS[,j], Pmat[,j])  </span>
+<span id="cb110-4"><a href="#cb110-4" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="why-fail_files/figure-html/unnamed-chunk-39-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Build a weight matrix:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb111"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb111-1"><a href="#cb111-1" aria-hidden="true" tabindex="-1"></a>Wmat <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(X <span class="sc">==</span> <span class="dv">1</span>, <span class="dv">1</span><span class="sc">/</span>PS, <span class="dv">1</span><span class="sc">/</span>(<span class="dv">1</span><span class="sc">-</span>PS))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="step-2-plug-in-the-ipw-as-weights-1" class="level4">
+<h4 class="anchored" data-anchor-id="step-2-plug-in-the-ipw-as-weights-1">Step 2: plug in the IPW as weights</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb112"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb112-1"><a href="#cb112-1" aria-hidden="true" tabindex="-1"></a>res_cl4 <span class="ot">&lt;-</span> <span class="fu">clamp</span>(X, y, <span class="at">W =</span> Wmat, <span class="at">standardize =</span> F)</span>
+<span id="cb112-2"><a href="#cb112-2" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_cl4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable PIP PostMean PostSD CI_lower CI_upper
+        3   1  -1.5333 0.0447  -1.6210  -1.4457
+        6   1  -1.5802 0.0447  -1.6678  -1.4926
+        1   0   0.0000 0.0000   0.0000   0.0000
+        2   0   0.0000 0.0000   0.0000   0.0000
+        4   0   0.0000 0.0000   0.0000   0.0000
+        5   0   0.0000 0.0000   0.0000   0.0000
+        7   0   0.0000 0.0000   0.0000   0.0000
+        8   0   0.0000 0.0000   0.0000   0.0000
+        9   0   0.0000 0.0000   0.0000   0.0000
+       10   0   0.0000 0.0000   0.0000   0.0000</code></pre>
+</div>
+</div>
+</section>
+<section id="comparison-1-susie-1" class="level3">
+<h3 class="anchored" data-anchor-id="comparison-1-susie-1">Comparison 1: <code>susie</code></h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb114"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb114-1"><a href="#cb114-1" aria-hidden="true" tabindex="-1"></a>res_su4 <span class="ot">&lt;-</span> susieR<span class="sc">::</span><span class="fu">susie</span>(X, y, <span class="at">standardize=</span>F)</span>
+<span id="cb114-2"><a href="#cb114-2" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_su4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable    PIP PostMean PostSD CI_lower CI_upper
+        3 1.0000  -1.1431 0.1048  -1.3484  -0.9378
+        6 1.0000  -1.8821 0.1051  -2.0880  -1.6761
+       10 1.0000  -0.8215 0.1044  -1.0261  -0.6169
+        1 1.0000   0.7366 0.1042   0.5323   0.9409
+        2 1.0000   0.6493 0.1040   0.4456   0.8531
+        9 1.0000  -0.6255 0.1038  -0.8290  -0.4221
+        8 0.8892  -0.2919 0.1398  -0.5658  -0.0179
+        4 0.0627   0.0146 0.0619  -0.1067   0.1360
+        5 0.0146   0.0023 0.0226  -0.0419   0.0465
+        7 0.0078  -0.0009 0.0133  -0.0270   0.0253</code></pre>
+</div>
+</div>
+</section>
+<section id="comparison-2-conventional-pipeline-with-susie-1" class="level3">
+<h3 class="anchored" data-anchor-id="comparison-2-conventional-pipeline-with-susie-1">Comparison 2: conventional pipeline with <code>susie</code></h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb116"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb116-1"><a href="#cb116-1" aria-hidden="true" tabindex="-1"></a>resids <span class="ot">&lt;-</span> <span class="fu">residuals</span>(<span class="fu">lm</span>(y<span class="sc">~</span>U))</span>
+<span id="cb116-2"><a href="#cb116-2" aria-hidden="true" tabindex="-1"></a>res_su5 <span class="ot">&lt;-</span> susieR<span class="sc">::</span><span class="fu">susie</span>(X, resids, <span class="at">standardize=</span>F)</span>
+<span id="cb116-3"><a href="#cb116-3" aria-hidden="true" tabindex="-1"></a>gsusie<span class="sc">::</span><span class="fu">print_gsusie_coefficients</span>(res_su5)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code> variable PIP PostMean PostSD CI_lower CI_upper
+        3   1  -1.5252 0.0631  -1.6488  -1.4016
+        6   1  -1.5883 0.0631  -1.7120  -1.4647
+        1   0   0.0000 0.0000   0.0000   0.0000
+        2   0   0.0000 0.0000   0.0000   0.0000
+        4   0   0.0000 0.0000   0.0000   0.0000
+        5   0   0.0000 0.0000   0.0000   0.0000
+        7   0   0.0000 0.0000   0.0000   0.0000
+        8   0   0.0000 0.0000   0.0000   0.0000
+        9   0   0.0000 0.0000   0.0000   0.0000
+       10   0   0.0000 0.0000   0.0000   0.0000</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="brief-summary" class="level2">
+<h2 class="anchored" data-anchor-id="brief-summary">Brief Summary</h2>
+<p>The weight should be the inverse of the (estimated) probability of being assigned to that specific group given the covariates, i.e.,</p>
+<p><span class="math display">\[
+\hat{W}_i = \frac{1}{\hat{\operatorname{Pr}}(X = x_i|U = u_i)}.  
+\]</span></p>
+<p>Here, <span class="math inline">\(X\)</span> is a (single) treatment.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

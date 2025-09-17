@@ -1,0 +1,157 @@
+---
+title: "Exploration P4: Convergence Condition"
+date: "last-modified"
+date-format: "MMM D, YYYY"
+format: html
+editor: visual
+---
+
+```{r source functions}
+#| include: false
+#| echo: false
+#| message: false
+# source.dir <- "~/Documents/research/causal-susie/clamp/R"
+source.dir <- "~/Dropbox/paper-causal.susie/codes/clamp/R"
+file.sources <- list.files(source.dir, full.names = T, pattern="*.R")
+sapply(file.sources, source, .GlobalEnv)
+
+library(matrixStats)  ## matrixStats as one of the dependencies? 
+
+library(data.table)
+library(tidyverse)
+```
+
+```{r}
+expit <- function(x) {
+  ifelse(x > 0, 1/(1 + exp(-x)), exp(x) / (1 + exp(x)))
+}
+```
+
+## Check whether changing the convergence condition affects the biasedness of the estimated effect sizes. 
+
+The setting of the toy example follows that in `2024-07-12-update.qmd` .
+
+```{r}
+# set.seed(12345)
+n <- 1000
+p <- 10
+U <- rnorm(n)
+zeta <- ((1:p) -5.5) / 6
+delta <- matrix(rnorm(n*p, 0, 0.5), nrow=n, ncol=p)
+UU <- outer(U, zeta) + delta
+
+Pmat <- expit(UU)  # Prob matrix
+
+X <- sapply(1:p, function(j) {rbinom(n, 1, Pmat[,j])})
+X <- apply(X, 2, as.double)
+esp <- rnorm(n)
+
+(coefs <- rnorm(4))
+y <- coefs[1]*X[,1] + coefs[2]*X[,2] + coefs[3]*X[,10] + coefs[4]*U + esp
+```
+
+Check the probability matrix:
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(Pmat))
+apply(Pmat, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(Pmat)
+max(Pmat)
+```
+
+
+### Step 1: estimate the propensity scores and construct the weight matrix
+
+```{r estimate ps}
+PS <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS[, j] <- predict(glm(X[, j] ~ U, family = binomial), type = "response")
+}
+```
+
+Check the propensity score matrix
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS))
+apply(PS, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS)
+max(PS)
+```
+
+```{r}
+Wmat <- ifelse(X == 1, 1/PS, 1/(1-PS))
+```
+
+### Step 2: fit the causal SuSiE model
+
+#### 2-1 Causal SuSiE with modified likelihood function
+
+The first result uses the modified (reweighted) likelihood function defined 
+in `2024-09-06-update.qmd`: 
+
+$$
+\mathcal{L}(\mathbf{X}, \mathbf{y}|\boldsymbol{\beta}, \sigma^2) = 
+\frac{1}{\sqrt{2\pi \sigma^2}} 
+\exp \left[- \frac{\sum_{i=1}^n(y_i - \sum_{j=1}^p w_{ij}^* x_{ij} \beta_j)^2}{2\sigma^2} \right]
+$$
+
+where the reweighted-weight $w_{ij}^*$ is
+
+$$
+w_{ij}^* = \frac{w_{ij}^{1/2}}{\sum_{j=1}^p w_{ij}^{1/2}}. 
+$$
+
+
+
+```{r}
+res_cl <- clamp(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl)
+```
+
+```{r}
+coefs[1:3]
+```
+
+```{r}
+plot(res_cl$elbo)
+```
+
+
+#### 2-2 Causal SuSiE with original likelihood function
+
+The second result sticks to the original likelihood function of an ordinary 
+multiple linear regression model:
+
+$$
+\mathcal{L}(\mathbf{X}, \mathbf{y}|\boldsymbol{\beta}, \sigma^2) = 
+\frac{1}{\sqrt{2\pi \sigma^2}} 
+\exp \left[- \frac{\sum_{i=1}^n(y_i - \sum_{j=1}^p x_{ij} \beta_j)^2}{2\sigma^2} \right]
+$$
+
+```{r}
+res_cl_original <- clamp_original(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_original)
+```
+
+```{r}
+coefs[1:3]
+```
+
+```{r}
+plot(res_cl_original$elbo)
+```
+
+## Brief Summary
+
+The convergence condition does not take a crucial part in the updating procedure. 
+That is, the updating steps do not contain the (log-)likelihood function 
+or the derivative of the (log-)likelihood function.
+Thus, the convergence condition does not affect the fitted result substantially 
+especially in terms of the estimated effect sizes. 
+
+Well, then I will stick the original unmodified log-likelihood function. 
+
+
+

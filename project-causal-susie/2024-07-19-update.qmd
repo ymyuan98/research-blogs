@@ -1,0 +1,319 @@
+---
+title: "Exploration! (Causal SuSiE)"
+date: "last-modified"
+date-format: "MMM D, YYYY"
+format: 
+  html:
+    fig-width: 6
+    fig-height: 6
+editor: visual
+---
+
+## Objectives:
+
+1.  Some null variables still have a high PIP but their 95% credible intervals (based on the normal distribution) contain 0. Why? Is there a way to remove these null variables?
+
+2.  When fitting a causal SuSiE model with multiple treatments, are the estimated coefficients the same as those from the causal SER models (i.e. the SuSiE model with $L=1$ at a time)?
+
+3.  Compared to the associations studies, what is the advantage of using the causal SuSiE?
+
+-   A hypothetical advantage: when the confounders dominate the response, it is supposed that the conventional association studies discover a bunch of null variables instead of the true causal variables only. With the help of propensity scores, it is expected that none of the variables, or only the causal variables, are significant.
+
+4.  Compared to the conventional pipeline that firstly regresses out the effect of confounders and then regresses the response on the treatments, what is the advantage of using the propensity scores to adjust for the confounders?
+
+-   A hypothetical advantage: if a collider is accidentally considered as a confounder and is then being controlled, then the estimated effect size will include extra bias induced by the collider. It is hopeful that reweighting individuals with the inverse of propensity scores is likely to address this problem.
+
+5.  If we assign weights to each individual and then compute the weighted least-squared estimator, then should we consider the variance of the random error term $\sigma^2$?
+
+Here is not the real generative data model.
+
+$$
+y_i = x_i b + \epsilon_i, \ \epsilon_i \sim N(0, \sigma^2). 
+$$
+
+6.  Why is the weighted least-squared estimator valid? Show the equivalence of the weighted least-squared estimator and the IPW estimator.
+
+7.  Are the WLS estimator unbiased towards the corresponding causal effects?
+
+8.  Standardized / unstandardized?
+
+------------------------------------------------------------------------
+
+```{r setup}
+#| include: false
+#| echo: false
+#| message: false
+
+library(data.table)
+library(tidyverse)
+
+source.dir <- "~/Dropbox/paper-causal.susie/codes/clamp/R"
+file.sources <- list.files(source.dir, full.names = T, pattern="*.R")
+sapply(file.sources, source, .GlobalEnv)
+library(matrixStats)
+```
+
+```{r expit}
+expit <- function(x) {
+  ifelse(x > 0, 1/(1 + exp(-x)), exp(x) / (1 + exp(x)))
+}
+```
+
+## Objective 1
+
+> 1.  Some null variables still have a high PIP but their 95% credible intervals (based on the normal distribution) contain 0. Why? Is there a way to remove these null variables?
+
+```{r}
+# set.seed(2024092)
+# set.seed(13579)  ## a failed seed. 
+set.seed(20240716)
+n <- 1000
+
+U <- rnorm(n)
+
+logit_prob1 <- 1.2*U + 0.3 * rnorm(n)
+X1 <- rbinom(n, 1, expit(logit_prob1))
+
+logit_prob2 <- -1*U + 0.3 * rnorm(n)  
+X2 <- rbinom(n, 1, expit(logit_prob2))
+
+X <- cbind(as.matrix(X1), as.matrix(X2))
+X <- apply(X, 2, as.numeric)
+
+(coefs <- rnorm(3))
+```
+
+Assume X1 is the only causal variable:
+
+```{r}
+Y <- coefs[1] * X1 + coefs[3] * U + rnorm(n)
+```
+
+Compute the propensity scores and the corresponding weights:
+
+```{r}
+PS1_mod <- glm(X1 ~ U, family = binomial)
+PS1 <- predict(PS1_mod, type = "response")
+plot(expit(logit_prob1), PS1)
+```
+
+```{r}
+W1 <- ifelse(X1 == 1, 1/PS1, 1/(1-PS1))
+```
+
+```{r}
+PS2_mod <- glm(X2 ~ U, family = binomial)
+PS2 <- predict(PS2_mod, type = "response")
+plot(expit(logit_prob2), PS2)
+```
+
+```{r}
+W2 <- ifelse(X2 == 1, 1/PS2, 1/(1-PS2))
+```
+
+```{r}
+Wmat <- cbind(W1, W2)
+```
+
+Fit the `CLAMP` (causal SuSiE) model:
+
+```{r}
+res_cl <- clamp(X, Y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl)
+```
+
+We notice that the true causal effect of $X_1$, which is `r coefs[1]`, is not included in the CI of the estimated effect size. Why?
+
+Check the SERs respectively:
+
+```{r}
+res_cl_x1 <- clamp(as.matrix(as.numeric(X1)), Y, W = as.matrix(W1), standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_x1)
+```
+
+```{r}
+res_cl_x2 <- clamp(as.matrix(as.numeric(X2)), Y, W = as.matrix(W2), standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_x2)
+```
+
+Check the SuSiE model, equivalent to running `clamp()` without specifying the weight matrix.
+
+```{r}
+res_su <- clamp(X, Y, standardize = F)
+# res_su <- susieR::susie(X, Y, standardize = F)  ## Equivalent
+gsusie::print_gsusie_coefficients(res_su)
+```
+
+The results show that:
+
+(When setting `set.seed(2024092)`:)
+
+-   The function `clamp()` discovers only one variable with non-zero effect size.
+
+-   In terms of the estimation of the regression coefficients (effect sizes), the results from the weighted SERs and from the weighted SuSiE model (with multiple treatments) basically match;
+
+-   The estimates of the causal variables from the weighted SERs are likely to be biased, and their 95% CIs may not covers the true causal effect;
+
+-   In terms of discovering the causal variables, the weighted SuSiE model (with the inverse of propensity scores as weights) is likely to do better on removing the null variables.. (? Need more experiments to validate..)
+
+#### `lm()`
+
+```{r}
+res_lm <- lm((Y-coefs[3] * U) ~ X1 - 1)
+summary(res_lm)
+confint(res_lm)
+```
+
+#### Check whether the estimates of the effect size are unbiased or not by bootstraping
+
+```{r}
+BB <- 1000  # number of bootstrap trials
+coefs_hat <- matrix(nrow = BB, ncol = 2)
+pips <- matrix(nrow = BB, ncol = 2)
+
+for (bb in 1 : BB) {
+  
+  # Bootstrap dataset
+  ind <- sample(1:n, size = n, replace = T)
+  X_boot <- X[ind, ]
+  Y_boot <- Y[ind]
+  Wmat_boot <- Wmat[ind, ]
+  
+  # Fit the causal SuSiE
+  res_cl_boot <- clamp(X_boot, Y_boot, W = Wmat_boot, standardize = F)
+  coefs_hat[bb, ] <- susieR::susie_get_posterior_mean(res_cl_boot)
+  pips[bb, ]      <- res_cl_boot$pip
+}
+```
+
+Plot the true causal effect (red), the estimated coefficient from `clamp()` (blue), and the bootstrap posterior means (histogram).
+
+```{r}
+# Estimated coefficient of X1
+as.data.frame(coefs_hat) %>%
+  ggplot(aes(x = V1)) + 
+  geom_histogram(color = "black", fill = "white", bins=20) +
+  geom_vline(xintercept = coefs[1], 
+             color = "red", linetype = "dashed", size = 1) + 
+  geom_vline(xintercept = susieR::susie_get_posterior_mean(res_cl)[1],
+             color = "blue", linetype = 1, size = 1) + 
+  geom_vline(xintercept = quantile(coefs_hat[,1], probs = c(0.025, 0.975)),
+             color = "blue", linetype = 3, size = 0.75) + 
+  labs(x = "beta_1 hat")
+```
+
+```{r}
+# Estimated coefficient of X2
+as.data.frame(coefs_hat) %>%
+  ggplot(aes(x = V2)) + 
+  geom_histogram(color = "black", fill = "white", bins=20) +
+  geom_vline(xintercept = 0, 
+             color = "red", linetype = "dashed", size = 1) + 
+  geom_vline(xintercept = susieR::susie_get_posterior_mean(res_cl)[2],
+             color = "blue", linetype = 1, size = 1) + 
+  geom_vline(xintercept = quantile(coefs_hat[,2], probs = c(0.025, 0.975)),
+             color = "blue", linetype = 3, size = 0.75) + 
+  labs(x = "beta_2 hat")
+```
+
+### Another Example:
+
+```{r}
+set.seed(13579)  ## a failed seed.
+
+n <- 1000
+
+U <- rnorm(n)
+
+logit_prob1 <- 1.2*U + 0.3 * rnorm(n)
+X1 <- rbinom(n, 1, expit(logit_prob1))
+
+logit_prob2 <- -1*U + 0.3 * rnorm(n)  
+X2 <- rbinom(n, 1, expit(logit_prob2))
+
+X <- cbind(as.matrix(X1), as.matrix(X2))
+X <- apply(X, 2, as.numeric)
+
+(coefs <- rnorm(3))
+```
+
+Assume X1 is the only causal variable:
+
+```{r}
+# Y <- coefs[1] * X1 + coefs[3] * U + rnorm(n)
+Y <- 0.5 * X1 + 1.5 * U + rnorm(n)
+```
+
+Compute the propensity scores and the corresponding weights:
+
+```{r}
+PS1_mod <- glm(X1 ~ U, family = binomial)
+PS1 <- predict(PS1_mod, type = "response")
+plot(expit(logit_prob1), PS1)
+```
+
+```{r}
+W1 <- ifelse(X1 == 1, 1/PS1, 1/(1-PS1))
+```
+
+```{r}
+PS2_mod <- glm(X2 ~ U, family = binomial)
+PS2 <- predict(PS2_mod, type = "response")
+plot(expit(logit_prob2), PS2)
+```
+
+```{r}
+W2 <- ifelse(X2 == 1, 1/PS2, 1/(1-PS2))
+```
+
+```{r}
+Wmat <- cbind(W1, W2)
+```
+
+Fit the `CLAMP` (causal SuSiE) model:
+
+```{r}
+res_cl <- clamp(X, Y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl)
+```
+
+```{r}
+res_cl_v2 <- clamp(cbind(X, 1), Y, W = cbind(Wmat, 1), standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_v2)
+```
+
+Check the SERs respectively:
+
+```{r}
+res_cl_x1 <- clamp(as.matrix(as.numeric(X1)), Y, W = as.matrix(W1), standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_x1)
+```
+
+```{r}
+res_cl_x2 <- clamp(as.matrix(as.numeric(X2)), Y, W = as.matrix(W2), standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_x2)
+```
+
+```{r}
+res_cl_x2_v2 <- clamp(as.matrix(cbind(as.numeric(X2), 1)), Y, 
+                   W = as.matrix(cbind(W2, 1)), 
+                   standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_x2_v2)
+```
+
+```{r}
+res_cl_x2_v3 <- clamp(as.matrix(cbind(as.numeric(X2), 1, rnorm(n))), Y, 
+                   W = as.matrix(cbind(W2, 0.5, 0.5)), 
+                   standardize = F)
+gsusie::print_gsusie_coefficients(res_cl_x2_v3)
+```
+
+**What is this?! Why?!**
+
+Check the SuSiE model, equivalent to running `clamp()` without specifying the weight matrix.
+
+```{r}
+res_su <- clamp(X, Y, standardize = F)
+# res_su <- susieR::susie(X, Y, standardize = F)  ## Equivalent
+gsusie::print_gsusie_coefficients(res_su)
+```

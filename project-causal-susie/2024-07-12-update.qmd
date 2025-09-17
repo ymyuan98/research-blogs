@@ -1,0 +1,550 @@
+---
+title: "Why did the previous toy examples fail?"
+format: 
+  html:
+    fig-width: 6
+    fig-height: 6
+  pdf:
+    fig-width: 6
+    fig-height: 6
+editor: visual
+---
+
+```{r}
+#| echo: false
+#| message: false
+
+library(data.table)
+```
+
+## One binary treatment + one confounding factor
+
+```{r expit}
+expit <- function(x) {
+  ifelse(x > 0, 1/(1 + exp(-x)), exp(x) / (1 + exp(x)))
+}
+```
+
+Suppose there are only one confounding factor that affects both the (only one) binary treatment and the outcome.
+
+```{r synthetic data 1}
+
+set.seed(123)
+n <- 500  ## sample size
+
+L <- rnorm(n)
+logit_prob <- 1.2 * L + rnorm(n)
+  
+A <- rbinom(n, 1, expit(logit_prob))
+eps <- rnorm(n)
+  
+Y <- 1.5 * A + 1 * L + eps
+```
+
+Expectations of counterfactual outcomes
+
+```{r}
+Y0 <-       1 * L + eps
+Y1 <- 1.5 + 1 * L + eps
+```
+
+```{r}
+print(paste("E[Y0]:", mean(Y0)))
+print(paste("E[Y1]:", mean(Y1)))
+```
+
+**Inverse Propensity Weighting**:
+
+The modified Horvitz-Thompson estimator is given by
+
+$$
+\frac{\operatorname{E}\left[\frac{I(A=a)Y}{\operatorname{Pr}(A=a|L)} \right]}
+{\operatorname{E}\left[\frac{I(A=a)}{\operatorname{Pr}(A=a|L)} \right]}.
+$$
+
+The estimated version of it is given by:
+
+```{r}
+PS_mod <- glm(A~L, family = binomial)
+PS <- predict(PS_mod, type = "response")
+plot(expit(logit_prob), PS)
+```
+
+```{r}
+(est_EY0 <- mean(1*(A==0) * Y * 1/(1-PS)) / mean(1*(A==0) * 1/(1-PS)))
+(est_EY1 <- mean(1*(A==1) * Y * 1/PS) / mean(1*(A==1) * 1/PS))
+```
+
+**Weighted Least square**:
+
+The estimated $\hat{E}[Y|A=a] = \hat{\theta}_0+\hat{\theta}_1a$ yielded from $\sum_i \hat{W}_i [Y_i - (\theta_0 + \theta_1A_i)]^2$ is equal to $\frac{\sum_i \hat{W}_i Y_i}{\sum_i \hat{W}_i}$ sum over all subject with $A=a$, where $\hat{W}_i = 1/\hat{\operatorname{Pr}}(A=a|L)$.
+
+```{r}
+W <- ifelse(A==1, 1/PS, 1/(1-PS))
+mod <- lm(Y ~ A, weights = W)
+summary(mod)
+Yhat <- predict(mod)
+```
+
+```{r}
+(EYhat_0 <- mean(Yhat[A==0]))
+(EYhat_1 <- mean(Yhat[A==1])) 
+```
+
+> **Reminder**: the weight is the inverse of **the probability of a subject being assigned to the group A**. Specifically, if $A=0$, the weight should be $1/(1-\operatorname{Pr}(A=1|L))$!!
+
+**Treatment Effect Estimation:** The estimated treatment effect is the coefficient of $A$, which is 1.60(0.11). It is unbiased.
+
+### Centralized version: weighted linear regression without the intercept term
+
+```{r}
+mod2 <- lm(scale(Y, scale = F) ~ scale(A, scale = F) - 1, weights = W)
+summary(mod2)
+```
+
+Close to our expectation: i.e., the estimated coefficient of $A$ in the weighted least square model with an intercept.
+
+### Normalized version
+
+```{r}
+mod3 <- lm(scale(Y) ~ scale(A) - 1, weights = W)
+summary(mod3)
+```
+
+Well, since the independent and dependent variables are scaled, the estimated effect size is also the scaled.
+
+Suppose the estimated coefficient from the centralized model (without intercept) `mod2` is $\hat{\beta}_1$, and the estimated coefficient from the scaled model (without intercept) `mod3` is $\hat{\beta}_1^*$.
+
+Then,
+
+$$
+\hat{\beta}_1 = \hat{\beta}_1^* \frac{\sigma(Y)}{\sigma(A)}
+$$
+
+```{r}
+coef(mod3) * sd(Y) / sd(A)
+```
+
+## What if there are two binary treatments?
+
+Assume that there are two binary treatments $(A_1, A_2)$ and both of them are confounded by the same confounding factor $L$; the confounder $L$ affects the outcome $Y$ as well.
+
+Assume that correlation between $(A_1, A_2)$ is relatively low.
+
+```{r}
+set.seed(2024)
+n <- 1000
+
+L <- rnorm(n)
+
+logit_prob1 <- 1.2*L + 0.3 * rnorm(n)
+A1 <- rbinom(n, 1, expit(logit_prob1))
+
+logit_prob2 <- -1*L + 0.3 * rnorm(n)  
+A2 <- rbinom(n, 1, expit(logit_prob2))
+
+cor(logit_prob1, logit_prob2)
+cor(A1, A2)
+
+(coefs <- rnorm(3))
+
+esp2 <- rnorm(n)
+Y <- coefs[1]*A1 + coefs[2]*A2 + coefs[3]*L + esp2
+# hist(Y)
+```
+
+**How to define the counterfactual outcomes?**
+
+Define the counterfactual outcomes based on the joint distribution of treatments $(A_1, A_2)$.
+
+If there are two binary treatments, then $2^2=4$ combinations defines four counterfactual outcomes: $\{Y(0,0), Y(0,1), Y(1,0), Y(1,1)\}$.
+
+```{r}
+# data.table(Y=Y, A1=A1, A2=A2)[, mean(Y), by = .(A1, A2)] 
+dt_full <- data.table(Y = Y, 
+            A1 = A1, 
+            A2 = A2, 
+            Y00 = coefs[1]*0 + coefs[2]*0 + coefs[3]*L + esp2, 
+            Y10 = coefs[1]*1 + coefs[2]*0 + coefs[3]*L + esp2,
+            Y01 = coefs[1]*0 + coefs[2]*1 + coefs[3]*L + esp2,
+            Y11 = coefs[1]*1 + coefs[2]*1 + coefs[3]*L + esp2)
+cols <- paste0(rep("EY", times = 4), c("00", "10", "01", "11"))
+dt_full[,  .(mean(Y00), mean(Y10), mean(Y01), mean(Y11))] |> t() |> round(3)
+```
+
+**How to evaluate the causal effects with the help of propensity scores?**
+
+Let us assume that there are not unobserved confounding factors. By this assumption, given confounding factor $L$, the two treatments are (conditionally) independent:
+
+$$
+A_1 \perp\!\!\perp A_2 | L. 
+$$
+
+Then, the joint propensity score of $\mathbf{A}=(A_1, A_2)$ given $L$ equals the multiplication of the two propensity scores. That is,
+
+$$
+\operatorname{Pr}(A_1=a_1, A_2=a_2 | L) = 
+\operatorname{Pr}(A_1=a_1|L) \operatorname{Pr}(A_2=a_2|L)
+$$
+
+**Can I estimate the true causal effect of** $A_1$ with its conditional independent propensity score $Pr(A_1=a_1|L)$ only?
+
+Let's try.
+
+First is the inverse propensity score weighting.
+
+```{r}
+PS1_mod <- glm(A1 ~ L, family = binomial)
+PS1 <- predict(PS1_mod, type = "response")
+plot(expit(logit_prob1), PS1)
+
+range(PS1)
+```
+
+Inverse Propensity Weighting:
+
+```{r}
+W1 <- ifelse(A1==0, 1/(1-PS1), 1/PS1)
+range(W1)
+
+dt_full[, c("W1", "W1Y") := .(W1, W1*Y)]
+# head(dt_full, 2)
+dt_full[, sum(W1Y) / sum(W1), by = A1]
+```
+
+Weighted least squares:
+
+```{r}
+mod_t2_a1 <- lm(Y ~ A1, weights = W1)
+summary(mod_t2_a1)
+```
+
+```{r}
+confint(mod_t2_a1)
+```
+
+The 95% CI does contain the true causal effect size.
+
+Is it really a good estimation?
+
+**How about** $A_2$?
+
+Now take a look at the estimated marginal causal effect size of $A_2$.
+
+```{r}
+PS2_mod <- glm(A2 ~ L, family = binomial)
+PS2 <- predict(PS2_mod, type = "response")
+plot(expit(logit_prob2), PS2)
+
+range(PS2)
+```
+
+```{r}
+W2 <- ifelse(A2 == 0, 1/(1-PS2), 1/PS2)
+mod_t2_a2 <- lm(Y ~ A2, weights = W2)
+summary(mod_t2_a2)
+```
+
+```{r}
+confint(mod_t2_a2)
+```
+
+The 95% CI always includes the true causal effect size.
+
+Is it a good estimation?
+
+## What if the confounding factor L is also included in the unweighted linear model?
+
+```{r}
+mod_t2_a1_v2 <- lm(Y ~ A1 + L)
+summary(mod_t2_a1_v2)
+```
+
+```{r}
+mod_t2_a2_v2 <- lm(Y ~ A2 + L)
+summary(mod_t2_a2_v2)
+```
+
+```{r}
+mod_all <- lm(Y ~ A1 + A2 + L)
+summary(mod_all)
+```
+
+The 95% CI of the estimates:
+
+```{r}
+confint(mod_all)
+```
+
+Compared with the true coefficients:
+
+```{r}
+coefs
+```
+
+The confidence intervals of `mod_all` include the true values.
+
+Seems good...
+
+#### Try the \`clamp\` package?
+
+```{r source functions}
+#| include: false
+#| echo: false
+#| message: false
+# source.dir <- "~/Documents/research/causal-susie/clamp/R"
+source.dir <- "~/Dropbox/paper-causal.susie/codes/clamp/R"
+file.sources <- list.files(source.dir, full.names = T, pattern="*.R")
+sapply(file.sources, source, .GlobalEnv)
+
+library(matrixStats)
+```
+
+```{r}
+## Aggregate the input data
+X <- cbind(as.matrix(A1), as.matrix(A2))
+X <- apply(X, 2, as.numeric)
+## Inverse propensities as weights: 
+Wmat <- cbind(W1, W2)
+```
+
+Run the `clamp` function:
+
+```{r}
+res_cl <- clamp(X, Y, W = Wmat, standardize=F)
+gsusie::print_gsusie_coefficients(res_cl)
+```
+
+Well, looks good.....
+
+## Another example: A1 is the only causal variable
+
+```{r}
+Y <- coefs[1] * A1 + coefs[3] * L + rnorm(n)
+```
+
+```{r}
+res_cl <- clamp(X, Y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl)
+```
+
+Alright, it looks good!
+
+## A more complicated example: more treatments and only a few of them are causal variables (the synthetic example I failed last time).
+
+Let $p=10$ and $n=1000$.
+
+We simulate each input variable (treatment) $X_j$ with
+
+$$
+X_{ij}=1 \sim \operatorname{Bern}(\operatorname{expit}(L^*_{ij})), 
+$$
+
+where we let the (observable) confounding factor $U \sim N(0, 1^2)$, and the ture latent confounding factors of each subject $U_{ij}$ to be
+
+$$
+u^*_{ij}=\zeta_j u_i +\delta_{ij}, \ \delta_{ij} \sim N(0, 0.5^2)
+$$
+
+and the scalar $\zeta_j = (j-5.5)/6$.
+
+For $j=1, \ldots, 10$, we let
+
+$$
+g_j(t) = \frac{1}{1+\exp\left(- t\right)}
+$$
+
+This is to let logistic regression model catch the correct propensity score.
+
+The response is generated with
+
+$$
+y_i = \beta_{3} x_{i3} + \beta_{6} x_{i6} + \beta_{7} x_{i7} + \theta_{u} u_i + \epsilon_i, \ \epsilon_i \sim N(0, 1^2)
+$$
+
+where regression coefficients $\beta_3, \beta_6, \beta_7, \theta_u$ are randomly generated from the standard normal distribution.
+
+```{r generate data 3}
+# set.seed(34567)
+set.seed(202407)
+n <- 1000
+p <- 10
+U <- rnorm(n)
+zeta <- ((1:p) -5.5) / 6
+delta <- matrix(rnorm(n*p, 0, 0.5), nrow=n, ncol=p)
+UU <- outer(U, zeta) + delta
+
+Pmat <- expit(UU)  # Prob matrix
+
+X <- sapply(1:p, function(j) {rbinom(n, 1, Pmat[,j])})
+X <- apply(X, 2, as.double)
+esp <- rnorm(n)
+
+(coefs <- rnorm(4))
+y <- coefs[1]*X[,3] + coefs[1]*X[,6] + coefs[3]*X[,7] + coefs[4]*U + esp  
+```
+
+Check the probability matrix:
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(Pmat))
+apply(Pmat, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(Pmat)
+max(Pmat)
+```
+
+```{r}
+library(corrplot)
+corrplot(cor(Pmat), method = "number", type = "upper")
+```
+
+#### Step 1: Estimate the propensity scores and construct the weight matrix
+
+```{r estimate ps 2}
+PS <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS[, j] <- predict(glm(X[, j] ~ U, family = binomial), type = "response")
+}
+```
+
+Check the propensity score matrix
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS))
+apply(PS, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS)
+max(PS)
+```
+
+Check the goodness-of-fit of the propensity score:
+
+```{r check ps, fig.width=8, fig.height=16}
+par(mfrow = c(5, 2)) 
+for (j in 1 : p) {
+  plot(PS[,j], Pmat[,j])  
+}
+```
+
+The weight is not the inverse of the outcome of PS computed above! The computation above gives $\operatorname{Pr}(X_j=1|U)$; for those with $X_j=0$, its corresponding propensity score should be $\operatorname{Pr}(X_j=0|U) = 1 - \operatorname{Pr}(X_j=1|U)$.
+
+```{r}
+Wmat <- ifelse(X == 1, 1/PS, 1/(1-PS))
+```
+
+#### Step 2: plug in the IPW as weights
+
+```{r}
+res_cl3 <- clamp(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl3)
+```
+
+### Comparison 1: `susie`
+
+```{r}
+res_su3 <- susieR::susie(X, y, standardize=F)
+gsusie::print_gsusie_coefficients(res_su3)
+```
+
+### Comparison 2: conventional pipeline with `susie`
+
+```{r}
+resids <- residuals(lm(y~U))
+res_su4 <- susieR::susie(X, resids, standardize=F)
+gsusie::print_gsusie_coefficients(res_su4)
+```
+
+## Another example: (change a random seed!)
+
+```{r}
+set.seed(34567)
+
+n <- 1000
+p <- 10
+U <- rnorm(n)
+zeta <- ((1:p) -5.5) / 6
+delta <- matrix(rnorm(n*p, 0, 0.5), nrow=n, ncol=p)
+UU <- outer(U, zeta) + delta
+
+Pmat <- expit(UU)  # Prob matrix
+
+X <- sapply(1:p, function(j) {rbinom(n, 1, Pmat[,j])})
+X <- apply(X, 2, as.double)
+esp <- rnorm(n)
+
+(coefs <- rnorm(4))
+y <- coefs[1]*X[,3] + coefs[1]*X[,6] + coefs[3]*X[,7] + coefs[4]*U + esp  
+```
+
+Check the correlation of probabilities:
+
+```{r}
+corrplot(cor(Pmat), method = "number", type = "upper")
+```
+
+#### Step 1: Estimate the propensity scores and construct the weight matrix
+
+```{r estimate ps 3}
+PS <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS[, j] <- predict(glm(X[, j] ~ U, family = binomial), type = "response")
+}
+```
+
+Check the propensity score matrix
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS))
+apply(PS, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS)
+max(PS)
+```
+
+Check the goodness-of-fit of the propensity score:
+
+```{r fig.width=8, fig.height=16}
+par(mfrow = c(5, 2)) 
+for (j in 1 : p) {
+  plot(PS[,j], Pmat[,j])  
+}
+```
+
+Build a weight matrix:
+
+```{r}
+Wmat <- ifelse(X == 1, 1/PS, 1/(1-PS))
+```
+
+#### Step 2: plug in the IPW as weights
+
+```{r}
+res_cl4 <- clamp(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl4)
+```
+
+### Comparison 1: `susie`
+
+```{r}
+res_su4 <- susieR::susie(X, y, standardize=F)
+gsusie::print_gsusie_coefficients(res_su4)
+```
+
+### Comparison 2: conventional pipeline with `susie`
+
+```{r}
+resids <- residuals(lm(y~U))
+res_su5 <- susieR::susie(X, resids, standardize=F)
+gsusie::print_gsusie_coefficients(res_su5)
+```
+
+## Brief Summary
+
+The weight should be the inverse of the (estimated) probability of being assigned to that specific group given the covariates, i.e.,
+
+$$
+\hat{W}_i = \frac{1}{\hat{\operatorname{Pr}}(X = x_i|U = u_i)}.  
+$$
+
+Here, $X$ is a (single) treatment.

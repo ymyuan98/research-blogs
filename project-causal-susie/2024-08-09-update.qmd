@@ -1,0 +1,420 @@
+---
+title: "Exploration P2: an intermediate summary of Causal SuSiE"
+date: "last-modified"
+date-format: "MMM D, YYYY"
+format: html
+editor: visual
+---
+
+The problem discussed last week is how to include the random error terms when fitting a causal (?) SuSiE model.
+
+We have two approach to do this:
+
+## Approach 1: Inflate the variance of the random error
+
+In short, we allows the variance of the random error of the generative data model, $\sigma^2$, to incorporate the effect of the confounding factor on the response. In this case, the estimated variance $\hat{\sigma}^2$ may be inflated because it contains more information.
+
+After estimating the effect size $\{\beta_j\}$ via $L$-layers of WSERs.
+
+### Definition of the simple weighted linear regression
+
+Suppose the (heteroscedastic) simple linear regression is defined as:
+
+$$
+Y_i = X_i b + \epsilon_i^*, \text{with } \epsilon_i^{*} \sim N \left(0, \frac{\sigma^2}{w_i}\right)
+$$
+
+where $w_i = 1/\operatorname{Pr}(X_i = x|U)$, and for the random errors are mutually independent.
+
+> This (heteroscedastic) simple regression model is equivalent to:
+
+$$
+[w^{1/2} Y] = [w^{1/2} X] b + \epsilon, \ \epsilon \sim N(0, \sigma^2),
+$$
+
+> which is to reweight the response $Y$ and the predictor $X$ by assinging them weight $w^{1/2}$
+
+Correspondingly, the MLE of $\beta_1$ and its variance are
+
+$$
+\hat{b} := \frac{\sum_{i}w_i x_i y_i}{\sum_i w_i x_i^2}
+$$
+
+$$
+s^2 := \frac{\sigma^2}{\sum_i w_i x_i^2}.
+$$
+
+The posterior distribution for $b$ is identical up to using notation $\hat{b}$ and $s^2$:
+
+$$
+b|\mathbf{y}, \mathbf{w}, \sigma^2, \sigma_0^2 \sim N_1(\mu_1, \sigma_1^2), 
+$$
+
+where
+
+$$
+\sigma_1^2(\mathbf{x}, \mathbf{y}; \sigma^2, \sigma_0^2, \mathbf{w}) := \frac{1}{1/s^2 + 1/\sigma_0^2}, 
+$$
+
+$$
+\mu_1(\mathbf{x}, \mathbf{y}; \sigma^2, \sigma_0^2, \mathbf{w}) := \frac{\sigma_1^2}{s^2} \cdot \hat{b}. 
+$$
+
+and the Bayes Factor (BF) for comparing this model with the null model $(b=0)$ is:
+
+$$
+\operatorname{BF}(\mathbf{x}, \mathbf{y}; \sigma^2, \sigma_0^2, \mathbf{w}) 
+:= \sqrt{\frac{s^2}{\sigma_0^2 + s^2}} \exp \left( \frac{z^2}{2} \cdot \frac{\sigma_0^2}{\sigma_0^2 + s^2} \right), 
+$$
+
+where $z := \hat{b}/s$ is the corresponding z-score.
+
+### The weighted single effect regression model (WSER)
+
+The **definition** of the weighted single effect regression model is, following the notations of the paper, 
+
+$$
+\mathbf{y} = \mathbf{X}\mathbf{b} + \boldsymbol{\epsilon}, 
+$$
+
+$$
+\boldsymbol{\epsilon} \sim N_n(0, \sigma^2 W),
+$$
+
+$$
+\mathbf{b} = b \boldsymbol{\gamma}, 
+$$
+
+$$
+\boldsymbol{\gamma} \sim \operatorname{Multi}(1, \boldsymbol{\pi}), 
+$$
+
+$$
+b \sim N_1(0, \sigma_0^2),
+$$
+
+where $\mathbf{X} \in \mathbb{R}^{n\times p}$, $W = \operatorname{diag}(1/w_1, \cdots, 1/w_n)$, $\boldsymbol{\pi} \in (0,1)^p$ is the vector of prior inclusion probabilities.
+
+Using the notations of the summary statistics $\hat{b}$ and $s^2$, the posterior distribution of the weighted single effect regression is the same as that of the SER (Appendix A2 in Wang et al.(2020)). Moreover, the math formula of layer-wise posterior inclusion probabilities (PIPs), denoted by $\boldsymbol{\alpha} \in (0,1)^p$, are also identical.
+
+*Pass*
+
+### The additive effect model?!?!
+
+> This section corresponds to Appendix B2: The additive effects model.
+
+Seems that this variable-wise weighted simple linear regression cannot simply be represented by an additive effects model like
+
+$$
+\mathbf{y} = \sum_{l=1}^L \boldsymbol{\mu}_l + \boldsymbol{\epsilon}, 
+$$
+
+where $\boldsymbol{\mu}_l = \mathbf{X} \mathbf{b}_l$.
+
+> Should we use another way to explain the validity of the causal SuSiE model?
+
+> This step is to validate the iterative Bayesian stepwise selection (IBSS) algorithm is equivalent to the variational approximation.
+
+> Without the proof in this step, ...?
+
+> We need to show that the IBSS is a kind of optimization step to find the fitted value of the model.
+
+> Why?!
+
+Now we assume that the multiple regression model is given by
+
+$$
+\mathbf{y} = \mathbf{X}\mathbf{b} + \mathbf{U} \xi + \boldsymbol{\epsilon}, \ \boldsymbol{\epsilon} \sim N_n(0, \sigma^2 I_n). 
+$$
+
+> The linear relationship between $y$ and $U$ is not necessary.
+
+If this is the case, then everything becomes
+
+### Variational Approximation
+
+Suppose the prior distribution of $\mathbf{b}$ is $g(\mathbf{b})$, which, in the empirical Bayes, is to be estimated.
+
+Suppose the variational distribution of $\mathbf{b}$ is $q(\mathbf{b})$.
+
+Suppose the parameters in the statistical model of data $\mathbf{y}$ given $\mathbf{b}$ are all denoted by $\theta$, and here $\mathbf{y}$ denotes both the response and the predictors (explanatory variables).
+
+#### KL-divergence and Evidence of Lower Bound (ELBO)
+
+$$
+\operatorname{KL}(q(\mathbf{b})\| p(\mathbf{b}|\mathbf{y}, \theta)) 
+= \log p(\mathbf{y}) - \mathbb{E}_{q(\mathbf{b})} \left[ \log p(\mathbf{y}|\mathbf{b}, \theta) - \log \frac{g(\mathbf{b})}{q(\mathbf{b})} \right]
+$$
+
+The second term of the right-hand side is called the evidence of lower bound.
+
+Minimizing the KL-divergence is equivalent to maximizing the ELBO.
+
+To compute the ELBO, we need the prior and variational distributions for the regression coefficients $\mathbf{b}$, which are already given by model assumptions. Besides, we need the likelihood function of the model, denoted by $p(\mathbf{y}|\mathbf{b}, \theta)$, or equivalently, the log-likelihood function $\log p(\mathbf{y}|\mathbf{b}, \theta)$.
+
+It is OK if there is no full form of the (log-)likelihood function, as long as the missing part is independent of $\mathbf{b}$ and is a constant (?).
+
+### Iterative Bayesian Stepwise selection
+
+The modified iterative Bayesian stepwise selection model is
+
+`PSEUDOCODE!!`
+
+Taking `Algorithm A3 Iterative Bayesian stepwise selection (extended version)` as reference. Lines 2-9 update the ELBO except the terms regarding the residual variance $\sigma^2$. These includes update the expectation of the the regression coefficients and the PIPs in each layer. Line 10 updates $\sigma^2$ considering the effects of all predictors. Lines 1-10 maximize the ELBO all together.
+
+Consider the generative data model of the causal model given above.\
+We may apply lines 2-9 similarly to update the regression coefficients and the PIPs, and the only modification is to use `WSER` instead of the `SER`. We assume that the causal effect is unbiasedly estimated at this stage. (?!)
+
+In line 10 updating the residual variance $\sigma^2$, however, we do not account for the effect of confounding factors on the response; instead, those responses are accounted for in the residual variance. This step will, as we suspect, will inflate the estimation of $\sigma^2$, and the posterior variance of (every single entry of) $\mathbf{b}$. It will also shrink the Bayes factors.
+
+\[Will it shrinks the PIPs as well?\]
+
+#### Update of the residual variance $\sigma^2$.
+
+The log-likelihood function is still based on the linear regression model, without considering the confounding effect:
+
+$$
+\ell(\mathbf{X}, \mathbf{y}; \mathbf{b}, \sigma^2) = \frac{n}{2} \log (2 \pi \sigma^2) - \frac{1}{2 \sigma^2}\sum_{i=1}^n(y_i - \mathbf{x}_{i.} \mathbf{b})^2
+$$
+
+where the explanatory variables of the $i$th individual, $\mathbf{x}_{i.}$, do not include the confounders.
+
+The residual variance is estimated via the expected residual sum of squares without considering the confounding effect. In this case, the residual variance incorporates the effect of confounders, which in turn may inflate the estimation of the residual variance.
+
+Besides, as the confounding effect in the linear regression model, the intercept terms is essential.
+
+> Try to manually add the all-one column while setting `intercept=FALSE` in the `clamp()` function. Compare the fitted results with those setting `intercep=TRUE` in `clamp()` and no all-one column.
+
+#### Convergence condition
+
+We stop updating the regression coefficients when the ELBO converges, i.e., the absolute difference (?) of the ELBOs between the current and previous ones are less than a threshold.
+
+### Toy example 1: two binary treatment + one confounder
+
+> `2024-07-12-update.qmd`
+
+```{r source functions}
+#| include: false
+#| echo: false
+#| message: false
+# source.dir <- "~/Documents/research/causal-susie/clamp/R"
+source.dir <- "~/Dropbox/paper-causal.susie/codes/clamp/R"
+file.sources <- list.files(source.dir, full.names = T, pattern="*.R")
+sapply(file.sources, source, .GlobalEnv)
+
+library(matrixStats)  ## matrixStats as one of the dependencies? 
+
+library(data.table)
+library(tidyverse)
+```
+
+
+```{r}
+expit <- function(x) {
+  ifelse(x > 0, 1/(1 + exp(-x)), exp(x) / (1 + exp(x)))
+}
+```
+
+
+Suppose there are only one confounding factor that affects the (binary) treatments and the response.
+
+```{r}
+# set.seed(20240910)
+set.seed(123123127)
+n <- 1000
+
+U <- rnorm(n)
+
+logit_prob1 <- 1.2*U + 0.3 * rnorm(n)
+X1 <- rbinom(n, 1, expit(logit_prob1))
+
+logit_prob2 <- -1*U + 0.3 * rnorm(n)  
+X2 <- rbinom(n, 1, expit(logit_prob2))
+
+X <- cbind(as.matrix(X1), as.matrix(X2))
+X <- apply(X, 2, as.numeric)
+
+cor(logit_prob1, logit_prob2)
+chisq.test(X1, X2)
+
+(coefs <- rnorm(3))
+
+esp2 <- rnorm(n, mean = 0, sd = 2)
+Y <- coefs[1]*X1 + coefs[2]*X2 + coefs[3]*U + esp2
+```
+
+```{r, fig.width=4, fig.height=4}
+## Find the propensity scores and the weight matrix
+
+PS1_mod <- glm(X1 ~ U, family = binomial)
+PS1 <- predict(PS1_mod, type = "response")
+# plot(expit(logit_prob1), PS1)
+# range(PS1)
+
+PS2_mod <- glm(X2 ~ U, family = binomial)
+PS2 <- predict(PS2_mod, type = "response")
+# plot(expit(logit_prob2), PS2)
+# range(PS2)
+
+W1 <- ifelse(X1==1, 1/PS1, 1/(1-PS1))
+W2 <- ifelse(X2==1, 1/PS2, 1/(1-PS2))
+Wmat <- cbind(W1, W2)
+```
+
+
+
+**Here comes the problem:**
+
+The latest version of `weighted_single_effect_regression()` only replaces 
+
+```{r}
+#| eval: false
+shat2 <- 1 / XtWX
+```
+
+with 
+
+```{r}
+#| eval: false
+shat2 <- residual_variance / XtWX  
+```
+
+If we set `estimate_residual_variance = TRUE`, 
+however, the residual variance blows up rapidly during the updates, 
+which in turn leads to the rapid decrease of the ELBO. 
+Weird!!
+
+> Trying to figure out where goes wrong here...
+
+Here, we still use `shat2 <- 1/XtWX` and check the code again...
+
+
+```{r}
+res_cl1 <- clamp(X, Y, W = Wmat, 
+                 standardize = F ,
+                 verbose = T #,
+                 # estimate_prior_variance = F,
+                 # maxL = 1, 
+                 # max_iter = 3,
+                 # estimate_residual_variance = F
+                 )
+gsusie::print_gsusie_coefficients(res_cl1) ## decreasing of ELBO?
+```
+
+```{r}
+coefs
+```
+
+
+```{r}
+res_cl1$elbo
+```
+
+
+```{r}
+res_cl1$sigma2
+```
+
+### Bootstrap interval
+
+
+```{r}
+BB <- 1000  # number of bootstrap trials
+coefs_hat <- matrix(nrow = BB, ncol = 2)
+pips <- matrix(nrow = BB, ncol = 2)
+
+for (bb in 1 : BB) {
+  
+  # Bootstrap dataset
+  ind <- sample(1:n, size = n, replace = T)
+  X_boot <- X[ind, ]
+  Y_boot <- Y[ind]
+  Wmat_boot <- Wmat[ind, ]
+  
+  # Fit the causal SuSiE
+  res_cl_boot <- clamp(X_boot, Y_boot, W = Wmat_boot, standardize = F)
+  coefs_hat[bb, ] <- susieR::susie_get_posterior_mean(res_cl_boot)
+  pips[bb, ]      <- res_cl_boot$pip
+}
+```
+
+```{r}
+# Estimated coefficient of X1
+as.data.frame(coefs_hat) %>%
+  ggplot(aes(x = V1)) + 
+  geom_histogram(color = "black", fill = "white", bins=20) +
+  geom_vline(xintercept = coefs[1], 
+             color = "red", linetype = "dashed", size = 1) + 
+  geom_vline(xintercept = susieR::susie_get_posterior_mean(res_cl1)[1],
+             color = "blue", linetype = 1, size = 1) + 
+  geom_vline(xintercept = mean(coefs_hat[,1]),
+             color = "green", linetype = 1, size = 1) + 
+  geom_vline(xintercept = quantile(coefs_hat[,1], probs = c(0.025, 0.975)),
+             color = "blue", linetype = 3, size = 0.75) + 
+  labs(x = "beta_1 hat")
+```
+
+```{r}
+# Estimated coefficient of X2
+as.data.frame(coefs_hat) %>%
+  ggplot(aes(x = V2)) + 
+  geom_histogram(color = "black", fill = "white", bins=20) +
+  geom_vline(xintercept = coefs[2], 
+             color = "red", linetype = "dashed", size = 1) + 
+  geom_vline(xintercept = susieR::susie_get_posterior_mean(res_cl1)[2],
+             color = "blue", linetype = 1, size = 1) + 
+  geom_vline(xintercept = quantile(coefs_hat[,2], probs = c(0.025, 0.975)),
+             color = "blue", linetype = 3, size = 0.75) + 
+  labs(x = "beta_2 hat")
+```
+
+### Some other tests
+
+```{r}
+summary(lm(Y ~ X1))
+```
+
+```{r}
+lm1 <- lm(Y ~ X1, weights = W1)
+summary(lm1)
+```
+
+
+```{r}
+Ystar <- Y * sqrt(W1) 
+X1star <- X1 * sqrt(W1)  
+lm2 <- lm(Ystar ~ X1star)
+summary(lm2)
+```
+
+
+```{r}
+## Inverse probability weighting
+sum(W1 * Y * (X1 == 1)) / sum(W1 * (X1 == 1)) - 
+sum(W1 * Y * (X1 == 0)) / sum(W1 * (X1 == 0))
+```
+
+
+```{r}
+plot(res_cl1$elbo)
+plot(res_cl1$loglik1)
+plot(res_cl1$loglik2)
+plot(res_cl1$loglik2 + (res_cl1$elbo - res_cl1$loglik1))
+```
+
+
+
+
+### What if we manually add an all-one column?
+
+```{r}
+#| eval: false
+res_cl2 <- clamp(cbind(X, 1), Y, W = cbind(Wmat, 1), standardize = F) ##?!
+```
+
+
+
+
+## Approach 2: Blame every unexplained variations except for the effect of confounders, incorporated in the weights, on variance
+
+This approach is the one proposed in `2024-07-26-update.qmd`. It is optional unless Approach 1 doesn't work.

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.549">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Exploration! Causal SuSiE - Flexible Variance Ver.</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="2024-07-26-update_files/libs/clipboard/clipboard.min.js"></script>
+<script src="2024-07-26-update_files/libs/quarto-html/quarto.js"></script>
+<script src="2024-07-26-update_files/libs/quarto-html/popper.min.js"></script>
+<script src="2024-07-26-update_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="2024-07-26-update_files/libs/quarto-html/anchor.min.js"></script>
+<link href="2024-07-26-update_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="2024-07-26-update_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="2024-07-26-update_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="2024-07-26-update_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="2024-07-26-update_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Exploration! Causal SuSiE - Flexible Variance Ver.</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">Jul 26, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="review-inverse-propensity-weighting-and-weighted-least-squared" class="level2">
+<h2 class="anchored" data-anchor-id="review-inverse-propensity-weighting-and-weighted-least-squared">Review: Inverse Propensity Weighting and Weighted Least-Squared</h2>
+<p>To adjust the confounding bias in estimating the causal effect, one way is to apply the inverse propensity weighting approach.</p>
+<p>Consider there is only one binary treatment, <span class="math inline">\(X \in \{0,1\}\)</span>. To estimate the expectation of potential outcomes, we calculate the weighted average given by</p>
+<p><span class="math display">\[
+\hat{\mathbb{E}}[Y^{(x)}] = \frac{\sum_{i \in \mathcal{I}_x}\hat{W}_i Y_i}{\sum_{i \in \mathcal{I}_x} \hat{W}_i},
+\]</span></p>
+<p>where <span class="math inline">\(\mathcal{I}_x\)</span> is the index set of individuals who were assigned to the treatment group <span class="math inline">\(x \in \{0, 1\}\)</span>, and <span class="math inline">\(\hat{W}_i = 1/\hat{\operatorname{Pr}}(X_i=x)\)</span> is the estimated weight, i.e.&nbsp;the inverse of propensity score, of individual <span class="math inline">\(i\)</span>. Then, the average treatment effect, i.e.&nbsp;the causal effect of <span class="math inline">\(X\)</span>, is given by</p>
+<p><span class="math display">\[
+\hat{\mathbb{E}}[Y^{(1)}] - \hat{\mathbb{E}}[Y^{(0)}]
+\]</span></p>
+<p>The causal effect estimated via inverse propensity weighting is equivalent to doing weighted least-squared estimation for outcome model</p>
+<p><span class="math display">\[
+\hat{\mathbb{E}}[Y|X] = \hat{\beta}_0+ \hat{\beta}_1 X
+\]</span></p>
+<p>via minimizing the weighted least square problem:</p>
+<p><span class="math display">\[
+\sum_{i=1}^{n}\hat{W}_i(Y_i - \beta_0 - \beta_1 X_i)^2.
+\]</span></p>
+<p>In brief, the estimated causal effect from the weighted least square problem, <span class="math inline">\(\hat{\beta}_1\)</span>, should be equivalent to the average treatment effect, i.e.,</p>
+<p><span class="math display">\[
+\hat{\beta}_1 = \hat{\mathbb{E}}[Y^{(1)}] - \hat{\mathbb{E}}[Y^{(0)}],
+\]</span></p>
+<p>and</p>
+<p><span class="math display">\[
+\hat{\beta}_0 = \hat{\mathbb{E}}[Y^{(0)}],
+\]</span></p>
+<p>where the expectation of potential outcomes are estimated using the inverse propensity weighting approach.</p>
+<p>(from Causal Inference: What If…? )</p>
+</section>
+<section id="step-1-define-the-simple-regression-model" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-define-the-simple-regression-model">Step 1: define the simple regression model</h2>
+<p>Still suppose there is only one binary treatment.</p>
+<p>Suppose <span class="math inline">\(X\)</span> is the explanatory variables, <span class="math inline">\(Y\)</span> is the response, and <span class="math inline">\(U\)</span> is the confounding factor affecting both <span class="math inline">\(Y\)</span> and <span class="math inline">\(X\)</span>. We further assume that <span class="math inline">\(\mathbf{X}\)</span> and <span class="math inline">\(U\)</span> are linearly related to <span class="math inline">\(Y\)</span>:</p>
+<p><span class="math display">\[
+Y = X \beta_1 + U \xi_u + \epsilon, \ \text{with } \epsilon \sim N(0, \sigma^2).
+\]</span></p>
+<blockquote class="blockquote">
+<p>Is the normality assumption required?</p>
+</blockquote>
+<p>By mathematical deduction (well, just some brief introduction), if we assuming that the population is reweighted by the inverse of propensity scores such that the pseudo-population is unconfounded by <span class="math inline">\(U\)</span>, we may then rewrite the model as</p>
+<p><span class="math display">\[
+Y = X \beta_1 + \epsilon^*, \text{with } \epsilon^{*} \sim N \left(0, \frac{\sigma^2}{W_i}\right)
+\]</span></p>
+<p>where <span class="math inline">\(W_i = 1/\operatorname{Pr}(X_i = x|U)\)</span>.</p>
+<blockquote class="blockquote">
+<p>Show the equivalence of these two models? Does U have to be linearly correlated with Y?</p>
+</blockquote>
+<p>Correspondingly, the MLE of <span class="math inline">\(\beta_1\)</span> and its variance are</p>
+<p><span class="math display">\[
+\hat{\beta}_1 := \frac{\sum_{i}w_i x_i y_i}{\sum_i w_i x_i^2}
+\]</span></p>
+<p><span class="math display">\[
+s^2 := \frac{\sigma^2}{\sum_i w_i x_i^2}.
+\]</span></p>
+<p>This (heteroscedastic) simple regression model is equivalent to:</p>
+<p><span class="math display">\[
+[w^{1/2} Y] = [w^{1/2} X] \beta_1 + \epsilon, \ \epsilon \sim N(0, \sigma^2).
+\]</span></p>
+<p><strong>Notes:</strong> when the individual-level weights <span class="math inline">\(\{w_i\}\)</span> are scaled, the MLE <span class="math inline">\(\hat{\beta}_1\)</span> remains unchanged, but its corresponding variance changes: If <span class="math inline">\(\{w_i\}\)</span> are normalized, i.e.&nbsp;we plug <span class="math inline">\(w_i^* = w_i / \sum_{i'=1}^n w_{i'}\)</span> instead, then</p>
+<p><span class="math display">\[
+s^{*2} = \frac{\sigma^2}{\sum_i w_i^* x_i^2} = \frac{\sigma^2 \sum_{i} w_i}{\sum_i w_i x_i^2} \geq s^2.
+\]</span></p>
+</section>
+<section id="step-2-define-the-multiple-linear-regression-model-based-on-step-1" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-define-the-multiple-linear-regression-model-based-on-step-1">Step 2: define the multiple linear regression model based on Step 1</h2>
+<section id="high-level-idea-decompose-the-response-into-causal-partitions-and-random-errors" class="level3">
+<h3 class="anchored" data-anchor-id="high-level-idea-decompose-the-response-into-causal-partitions-and-random-errors">High-level idea: decompose the response into causal partitions and random errors</h3>
+<p>Recall that the high-level idea of SuSiE is to decompose the response into several explainable parts and the random error, each of the former is explained by one effect variables.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/SuSiE.jpeg" class="img-fluid quarto-figure quarto-figure-center figure-img"></p>
+<figcaption>Fig.1: The framework of SuSiE</figcaption>
+</figure>
+</div>
+<p>The idea of causal SuSiE (the so-called CLAMP(?)) is alike. We attempt to decompose the response <span class="math inline">\(y\)</span> into several causal partitions and the random error, and each several causal partition of <span class="math inline">\(y\)</span> is expected to be explained by a causal variable via fitting a weighted least square model.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="figures/causal-susie.jpeg" class="img-fluid quarto-figure quarto-figure-center figure-img"></p>
+<figcaption>Fig.2: The framework of causal SuSiE</figcaption>
+</figure>
+</div>
+<p>The definition of the linear regression model is important because it determines the likelihood function of the model.</p>
+<section id="justification-for-the-weights" class="level4">
+<h4 class="anchored" data-anchor-id="justification-for-the-weights">Justification for the weights:</h4>
+<p>Weights <span class="math inline">\(w_j^* = \frac{w_j^{1/2}}{\sum_{j'=1}^n w_j^{1/2} + c}\)</span>: As stated above, the inverse propensity weighting is equivalent to a weighted least-squares model</p>
+<p><span class="math display">\[
+[w^{1/2} Y] = [w^{1/2} X] \beta_1 + \epsilon, \ \epsilon \sim N(0, \sigma^2).
+\]</span></p>
+<p>The model can be explained like this: for a causal variable <span class="math inline">\(X_j\)</span>, <span class="math inline">\(w_j^{1/2} X_j\)</span> explains <span class="math inline">\(w_j^{1/2} y\)</span>. By dividing the original ones by <span class="math inline">\(\sum_{j'=1}^p w_{j'}^{1/2} + c\)</span> (normalizing denominator), where <span class="math inline">\(c &gt; 0\)</span> is the flexible constant, we have that <span class="math inline">\(\sum_{j=1}^p w^*_j X_j \beta_j\)</span> explains <span class="math inline">\(\sum_{j=1}^p w^*_j \cdot y = \frac{\sum_{j=1}^p w_j^{1/2}}{\sum_{j'=1}^p w_j^{1/2} + c} \cdot y\)</span>.</p>
+<p>The denominator is the combination of the sum of original weights and a positive constant <span class="math inline">\(c\)</span> for model flexibility. The positive constant <span class="math inline">\(c\)</span> exists because the response <span class="math inline">\(y\)</span> cannot be completely explained by those causal variables; by such construction, we allow <span class="math inline">\(\frac{c}{\sum_{j'=1}^p w_j^{1/2} + c} \cdot y\)</span> to be unexplained by <span class="math inline">\(X_j's\)</span> and be represented by the random error <span class="math inline">\(\epsilon\)</span>.</p>
+<p>That is to say, the flexible constant <span class="math inline">\(c\)</span> is related to the random error <span class="math inline">\(\epsilon \sim N(0, \sigma^2)\)</span>. Notice that <span class="math inline">\(c\)</span> is shared across all individual <span class="math inline">\(i\)</span> (and thus all layers in the causal SuSiE(?)).</p>
+</section>
+</section>
+<section id="definition-of-the-multiple-linear-regression-model" class="level3">
+<h3 class="anchored" data-anchor-id="definition-of-the-multiple-linear-regression-model">Definition of the multiple linear regression model</h3>
+<p><span class="math display">\[
+y = x_1^* \beta_1 + x_2^* \beta_2 + \cdots + x_p^* \beta_p + \epsilon, \ \epsilon \sim N(0, \sigma^2).
+\]</span></p>
+<p>where the <span class="math inline">\(j\)</span>-th variable, <span class="math inline">\(x_{j}^* = w_j^* x_j\)</span> , is the transformed explanatory variable, and the weight <span class="math inline">\(w_j^*\)</span> is defined above.</p>
+<blockquote class="blockquote">
+<p>Is this an equivalent linear regression model? Are the estimated coefficients <span class="math inline">\(\hat{\beta}_j\)</span>’s unbiased?</p>
+</blockquote>
+<section id="the-corresponding-likelihood-function" class="level4">
+<h4 class="anchored" data-anchor-id="the-corresponding-likelihood-function">The corresponding likelihood function</h4>
+<p><span class="math display">\[
+\mathcal{L} = \left(\frac{1}{\sqrt{2\pi \sigma^2}}\right)^{n} \exp \left\{ -\frac{1}{2 \sigma^2} \sum_{i=1}^{n} \left(y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2 \right\}
+\]</span></p>
+<p>The equivalent log-likelihood function is</p>
+<p><span class="math display">\[
+\ell = -\frac{n}{2} \log (2\pi \sigma^2) - \frac{1}{2\sigma^2} \sum_{i=1}^n \left(y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2.
+\]</span></p>
+<p>Then, the estimated coefficients <span class="math inline">\(\hat{\beta}_j\)</span>’s are:</p>
+<p><span class="math display">\[
+\hat{\beta}_j = \arg\min \sum_{i=1}^n \left( y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2.
+\]</span></p>
+<blockquote class="blockquote">
+<p>Is each <span class="math inline">\(\hat{\beta}_j\)</span> equivalent to those estimated from the WSER shown above? Proofs needed.</p>
+</blockquote>
+</section>
+<section id="residual-sum-of-squares" class="level4">
+<h4 class="anchored" data-anchor-id="residual-sum-of-squares">Residual Sum of Squares</h4>
+<p><span class="math display">\[
+\text{RSS} = \sum_{i=1}^n \left(y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2
+\]</span></p>
+<p><span class="math display">\[
+= \sum_{i=1}^n  y_i^2 \cdot \left( \frac{c}{\sum_{j=1}^p w_{ij}^{1/2} + c} \right)^2
+\]</span></p>
+<p>Is the flexible parameter <span class="math inline">\(c\)</span> identifiable?</p>
+</section>
+</section>
+<section id="the-pipeline-of-the-causal-susie-model" class="level3">
+<h3 class="anchored" data-anchor-id="the-pipeline-of-the-causal-susie-model">The pipeline of the Causal SuSiE model</h3>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

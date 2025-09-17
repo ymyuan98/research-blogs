@@ -1,0 +1,585 @@
+---
+title: "Exploration P3: Likelihood function of Causal SuSiE"
+date: "last-modified"
+date-format: "MMM D, YYYY"
+format: html
+editor: visual
+---
+
+```{r source functions}
+#| include: false
+#| echo: false
+#| message: false
+# source.dir <- "~/Documents/research/causal-susie/clamp/R"
+source.dir <- "~/Dropbox/paper-causal.susie/codes/clamp/R"
+file.sources <- list.files(source.dir, full.names = T, pattern="*.R")
+sapply(file.sources, source, .GlobalEnv)
+
+library(matrixStats)  ## matrixStats as one of the dependencies? 
+
+library(data.table)
+library(tidyverse)
+```
+
+```{r}
+expit <- function(x) {
+  ifelse(x > 0, 1/(1 + exp(-x)), exp(x) / (1 + exp(x)))
+}
+```
+
+## 1. Another round of the definition of the likelihood function
+
+### 1.1 Likelihood function of a simple linear regression model
+
+Assume the simple linear regression model for individual $i$ is given by
+
+$$
+y_i | x_i, b, w_i \sim N\left(y_i \mid x_ib, \frac{\sigma^2}{w_i}\right)
+$$
+
+i.e.,
+
+$$
+y_i = x_i b + \epsilon_i, \ \epsilon_i \sim N\left(0, \frac{\sigma^2}{w_{i}} \right).
+$$
+
+The likelihood function (? or the so-called probability density function) of this simple linear regression model is given by
+
+$$
+\frac{1}{\sqrt{2\pi \sigma^2 / {w_i}}} \exp \left\{ -\frac{(y_i - x_ib)^2}{2\sigma^2 / w_{i}} \right\}. 
+$$
+
+Here, the weight $w_i$ is specific for the predictor $x_i$ for a specific individual $i$.
+
+### 1.2 Likelihood function of a causal SER model.
+
+Suppose the causal SER model is defined as follows:
+
+$$
+y_i = x_{i1} b_1 + x_{i2} b_2 + \cdots + x_{ip}b_p + \epsilon_i = \mathbf{x}_{i} \mathbf{b} + \epsilon_i
+$$
+
+$$
+\mathbf{b} = b \boldsymbol{\gamma}
+$$
+
+$$
+\boldsymbol{\gamma} \sim \text{Mult}(1, \boldsymbol{\pi}) \in \{0, 1\}^p
+$$
+
+$$
+b \sim N(0, \sigma_0^2) 
+$$
+
+The random error term, $\epsilon_i$, follows centralized normal distribution whose variance depends on which (single) predictor is the causal variable.
+
+In other words, it is written as:
+
+$$
+y_i | \mathbf{x}_i, \mathbf{b}, \gamma_j = 1 \sim 
+N\left(y_i \mid x_{ij} b, \ \frac{\sigma^2}{w_{ij}}\right)
+$$
+
+We use $f(y_i, \mathbf{x}_{i.}\mid \sigma^2, b, \gamma_j = 1)$to denote the pdf function of this distribution
+
+The likelihood function of this causal SER model becomes kind of challenging.
+
+Notice that when $\gamma_j = 1$, all $\gamma_{j'} = 0$ for all $j' \neq j$. That is, in this case, the effect of $y_i$ is only related to the $j$-th predictor, $x_{ij}$ (of the $i$th individual).
+
+Since we let $\mathbf{b} = b \boldsymbol{\gamma} \in \mathbb{R}^p$ and $\boldsymbol{\gamma} \sim \text{Mult}(1, \boldsymbol{\pi})$, the likelihood function of this causal SER model of this individual $i$ can (probably) be defined as (using unprofessional mathematical notations):
+
+$$
+\mathcal{L}(\mathbf{x}_i, y_i|\mathbf{b}) = 
+\prod_{j=1}^p \left\{ 
+\frac{1}{\sqrt{2\pi \sigma^2 / w_{ij}}} 
+\exp \left[ - \frac{(y_i - x_{ij}b)^2}{2 \sigma^2 / w_{ij}} \right]
+\right\}^{\mathbb{I}(\gamma_j = 1)} \\  
+= \prod_{j=1}^p 
+\left\{f(y_i, \mathbf{x}_{i.}\mid \sigma^2, b, \gamma_j = 1) \right\}^{\mathbb{I}(\gamma_j = 1)} 
+$$
+
+An alternative definition may yield the same results if and only if there is only one non-zero entry in $\boldsymbol{\gamma}$:
+
+$$
+\mathcal{L}(\mathbf{x}_i, y_i|\mathbf{b}) = 
+\sum_{j=1}^p \frac{1}{\sqrt{2 \pi \sigma^2 / w_{ij}}} 
+\exp \left[ - \frac{(y_i - x_{ij}b)^2}{2 \sigma^2 / w_{ij}} \right] \cdot \mathbb{I}(\gamma_j = 1)\\
+= \sum_{j=1}^p f(y_i, \mathbf{x}_{i.}\mid \sigma^2, b, \gamma_j = 1) \cdot \mathbb{I}(\gamma_j = 1).
+$$
+
+I am not sure which one is closer to (?) the true likelihood function (of a single data point). The choice of the likelihood function depends on how we interpret "which one single variable to choose" (?)
+
+It is easier to find out the log-likelihood function of the first definition:
+
+$$
+\ell (\mathbf{x}_i, y_i|\mathbf{b}) = 
+\sum_{j=1}^p \mathbb{I}(\gamma_j = 1) \cdot
+\left[ -\frac{1}{2} \log (2 \pi \sigma^2) + \frac{1}{2} \log w_{ij} -\frac{w_{ij}(y_i - x_{ij}b)^2}{2\sigma^2}\right]  
+$$
+
+$$
+= \frac{1}{2} \sum_{j=1}^p \mathbb{I}(\gamma_j = 1) 
+\left[ -\log (2 \pi \sigma^2) + \log w_{ij} -\frac{w_{ij}(y_i - x_{ij}b)^2}{\sigma^2} \right].
+$$
+
+Thus, *for a single data point*, the expectation of the log-likelihood function with respect to the variational distribution $q(\mathbf{b})$ is
+
+$$
+\mathbb{E}_q[\ell(\mathbf{x}_i, y_i|\mathbf{b})] 
+= \frac{1}{2} \sum_{j=1}^p \alpha_j 
+\left[ -\log (2 \pi \sigma^2) + \log w_{ij} -\frac{w_{ij}(y_i - x_{ij}\bar{b}_j)^2}{\sigma^2} \right], 
+$$
+
+where $\bar{b}_j = \alpha_j \mu_j$.
+
+It seems not easy to be extended to a causal SuSiE model because the causal SuSiE model accounts for the overall effect size, i.e., the linear combination of multiple effect variables.
+
+> Is this definition consistent with the likelihood function in ordinary cases?
+
+### 1.3 Likelihood function of a causal SuSiE model
+
+How to define a causal SuSiE model properly?
+
+$$
+y_i|\mathbf{x}_{i.}, \mathbf{b} \sim 
+N\left(y_i \mid \mathbf{x}_{i.} \mathbf{b}, \frac{\sigma^2}{w_i^*}\right)
+$$
+
+How to define the individual weight $w_i^*$?
+
+## 2. Justification of the (second) likelihood function defined in `2024-08-09-update`
+
+> Why is the likelihood function important to this problem?
+
+In some sense, we need to show that the method, or the IBSS algorithm, is maximizing some metrics, or is converging at a certain scale (?).
+
+------------------------------------------------------------------------
+
+## 3. Toy examples: a complicated case, multiple (binary treatments)
+
+> The simulation setting is identical to that in `2024-07-12-update.qmd`.
+
+Let $p=10$ and $n=1000$.
+
+We simulate each input variable (treatment) $X_j$ with
+
+$$
+X_{ij}=1 \sim \operatorname{Bern}(\operatorname{expit}(U^*_{ij})), 
+$$
+
+where we let the (observable) confounding factor $U \sim N(0, 1^2)$, and the ture latent confounding factors of each subject $U_{ij}$ to be
+
+$$
+u^*_{ij}=\zeta_j u_i +\delta_{ij}, \ \delta_{ij} \sim N(0, 0.5^2)
+$$
+
+and the scalar $\zeta_j = (j-5.5)/6$.
+
+For $j=1, \ldots, 10$, we let
+
+$$
+g_j(t) = \frac{1}{1+\exp\left(- t\right)}
+$$
+
+This is to let logistic regression model catch the correct propensity score.
+
+The response is generated with
+
+<!-- $$ -->
+
+<!-- y_i = \beta_{1} x_{i1} + \beta_{2} x_{i2} + \beta_{10} x_{i10} + \theta_{u} u_i + \epsilon_i, \ \epsilon_i \sim N(0, 1^2) -->
+
+<!-- $$ -->
+
+$$
+y_i = \beta_{1} x_{i1} + \beta_{2} x_{i2} + \theta_{u} u_i + \epsilon_i, \ \epsilon_i \sim N(0, 1^2)
+$$
+
+where regression coefficients $\beta_1, \beta_2, \beta_8, \theta_u$ are randomly generated from the standard normal distribution.
+
+```{r generate data}
+# set.seed(202409)
+set.seed(12345)
+n <- 1000
+p <- 10
+U <- rnorm(n)
+zeta <- ((1:p) -5.5) / 6
+delta <- matrix(rnorm(n*p, 0, 0.5), nrow=n, ncol=p)
+UU <- outer(U, zeta) + delta
+
+Pmat <- expit(UU)  # Prob matrix
+
+X <- sapply(1:p, function(j) {rbinom(n, 1, Pmat[,j])})
+X <- apply(X, 2, as.double)
+esp <- rnorm(n)
+
+coefs <- rnorm(4)
+coefs[c(1, 2, 4)]
+# y <- coefs[1]*X[,1] + coefs[2]*X[,2] + coefs[3]*X[,10] + coefs[4]*U + esp  
+y <- coefs[1]*X[,1] + coefs[2]*X[,2] + coefs[4]*U + esp  
+```
+
+Check the probability matrix:
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(Pmat))
+apply(Pmat, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(Pmat)
+max(Pmat)
+```
+
+```{r}
+library(corrplot)
+corrplot(cor(Pmat), method = "number", type = "upper")
+```
+
+### Step 1: estimate the propensity scores and construct the weight matrix
+
+```{r estimate ps 2}
+PS <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS[, j] <- predict(glm(X[, j] ~ U, family = binomial), type = "response")
+}
+```
+
+Check the propensity score matrix
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS))
+apply(PS, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS)
+max(PS)
+```
+
+Check the goodness-of-fit of the propensity score:
+
+```{r check ps, fig.width=8, fig.height=16}
+#| echo: false
+#| eval: false
+#| include: false
+
+par(mfrow = c(5, 2)) 
+for (j in 1 : p) {
+  plot(PS[,j], Pmat[,j])  
+}
+```
+
+```{r}
+Wmat <- ifelse(X == 1, 1/PS, 1/(1-PS))
+```
+
+### Step 2: plug in the IPW as weights
+
+```{r}
+res_cl <- clamp(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl)
+```
+
+```{r}
+coefs[1:2]
+```
+
+Check the residual variance:
+
+```{r}
+res_cl$sigma2
+```
+
+Check the ELBO:
+
+> Which likelhood function is used here?
+
+-   This ELBO incorporates the (second) likelihood function proposed in `2024-08-09-update` (?): (Besides, it is also used as the convergence condition.)
+
+$$
+\mathcal{L}(\mathbf{X}, \mathbf{y}|\boldsymbol{\beta}, \sigma^2) = 
+\frac{1}{\sqrt{2\pi \sigma^2}} 
+\exp \left[- \frac{\sum_{i=1}^n(y_i - \sum_{j=1}^p w_{ij}^* x_{ij} \beta_j)^2}{2\sigma^2} \right]
+$$
+
+where the reweighted-weight $w_{ij}^*$ is
+
+$$
+w_{ij}^* = \frac{w_{ij}^{1/2}}{\sum_{j=1}^p w_{ij}^{1/2}}. 
+$$
+
+```{r}
+plot(res_cl$loglik2)
+plot(res_cl$elbo)
+```
+
+### Compare with `susieR`
+
+```{r}
+res_su <- susieR::susie(X, y, standardize = F)
+gsusie::print_gsusie_coefficients(res_su)
+```
+
+### Compare with the conventional pipeline: regressing out the confounder
+
+```{r}
+res_lm1 <- lm(y ~ U)
+resids <- res_lm1$residuals
+res_su2 <- susieR::susie(X, resids, standardize = F)
+gsusie::print_gsusie_coefficients(res_su2)
+```
+
+<!-- > No doubt that this result is much clearer and better than the causal SuSiE  -->
+
+<!-- because the settings of the simulation study suit this conventional pipeline well. -->
+
+```{r}
+coefs[1:2]
+```
+
+Which one is better?
+
+------------------------------------------------------------------------
+
+## 4. Toy example of a significance: the proposed approach eliminates the potential effect of collider bias.
+
+#### Well, in short, no.
+
+The basic settings of the confounder $U$, the treatments $\mathbf{X}$ and the response $y$ are the same as those in Section 3. Additionally, we assume that there is another collider $C$ affected by some treatments and the response $y$:
+
+$$
+y_i = \beta_1 x_{i1} + \beta_2 x_{i2} + \beta_{10} x_{i10} + \beta_u u_i + \epsilon_i
+$$
+
+$$
+c_i = \theta_1 x_{i1} + \theta_6 x_{i6} + \theta_8 x_{i8} + \theta_{10} x_{i10} + \theta_y y_i + \epsilon_i^{c}. 
+$$
+
+In this case, if $C$ is controlled, then it opens the pathways from the two null variables, $X_6$ and $X_8$, to $Y$, and also biases the causal effect of the two causal variables, $X_{1}$ and $X_{10}$.
+
+```{r}
+set.seed(20240906)
+n <- 1000
+p <- 10
+U <- rnorm(n)
+zeta <- ((1:p) -5.5) / 6
+delta <- matrix(rnorm(n*p, 0, 0.5), nrow=n, ncol=p)
+UU <- outer(U, zeta) + delta
+# UU <- outer(U, zeta) 
+
+Pmat <- expit(UU)  # Prob matrix
+
+X <- sapply(1:p, function(j) {rbinom(n, 1, Pmat[,j])})
+X <- apply(X, 2, as.double)
+esp <- rnorm(n)
+
+(coefs <- rnorm(4))
+y <- coefs[1]*X[,1] + coefs[2]*X[,2] + coefs[3]*X[,10] + coefs[4]*U + esp
+
+## collider
+(coefs_colliders <- rnorm(5))
+eps_colliders <- rnorm(n)
+C <- coefs_colliders[1] * X[,1] + coefs_colliders[2] * X[,6] + 
+  coefs_colliders[3] * X[,8] + coefs_colliders[4] * X[,10] + 
+  coefs_colliders[5] * y + eps_colliders 
+```
+
+```{r}
+corrplot(cor(Pmat), method = "number", type = "upper")
+```
+
+### Step 1: estimate the propensity scores and construct the weight matrix
+
+Suppose the collider $C$ is accidentally treated as a confounder and then is accounted for in the propensity score.
+
+```{r}
+PS <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS[, j] <- predict(glm(X[, j] ~ U + C, family = binomial), type = "response")
+}
+```
+
+Check the propensity score matrix
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS))
+apply(PS, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS)  ## min = 0.006?
+max(PS)
+```
+
+```{r}
+Wmat <- ifelse(X == 1, 1/PS, 1/(1-PS))
+```
+
+### Step 2: plug in the IPW as weights and fit the model
+
+```{r}
+## Method 1: causal SuSiE with incorrect propensity score model
+res_cl2 <- clamp(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl2)
+```
+
+```{r}
+coefs[1:3]
+```
+
+<!-- We are glad to see that all three causal variables are selected,  -->
+
+<!-- i.e., the power is 100%;  -->
+
+<!-- besides, there is no falsely discovered variables, i.e., FDR=0.  -->
+
+Are these estimated effect sizes biased because of the collider bias? Yes!
+
+#### Evaluation: whether the biasedness is due to the collider or not.
+
+```{r}
+PS_TrueModel <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS_TrueModel[, j] <- predict(glm(X[, j] ~ U, family = binomial), 
+                               type = "response")
+}
+
+Wmat_TrueModel <- ifelse(X == 1, 1/PS_TrueModel, 1/(1-PS_TrueModel))
+```
+
+```{r}
+## Method 2 (benchmark): causal SuSiE with correct propensity score model 
+res_cl3 <- clamp(X, y, W = Wmat_TrueModel, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl3)
+```
+
+```{r}
+coefs[1:3]
+```
+
+It seems that, using the correct propensity score model, only $X_2$ and $X_{10}$ are discovered as the causal inference; their causal effect are (relatively) unbiasedly estimated.
+
+### Compare with the `susieR`
+
+```{r}
+## Method 3: vanilla SuSiE 
+res_su3 <- susieR::susie(X, y, standardize = F)
+gsusie::print_gsusie_coefficients(res_su3)
+```
+
+The result is relatively messy.
+
+### Compare with the conventional pipeline
+
+```{r}
+res_lm2 <- lm(y ~ U + C)
+summary(res_lm2)
+```
+
+```{r}
+## Method 4: conventional pipeline using susieR
+resids <- res_lm2$residuals
+res_su4 <- susieR::susie(X, resids, standardize = F)
+gsusie::print_gsusie_coefficients(res_su4)
+```
+
+> It seems that the advantage of the proposed causal SuSiE method over the conventional pipeline is not quite obvious (?)
+
+It seems the fitted results of the proposed causal SuSiE and the conventional pipeline are comparable.
+
+Whenever we control the collider $C$, the null variable relating to the collider is very likely to pop up in the final selection result.
+
+In other words, the variable selected by the causal SuSiE method are basically **the causal variables** and **the null variables affecting the collider.**
+
+> The collider bias is (probably) a kind of selection bias. The possible difference between the collider bias and the selection bias: the former may probably be avoided if we know the variable is a collider and then not adjust it in the model, whereas the latter may occur as an issue once the study design is settled.
+
+#### More examination
+
+```{r}
+# Adjust for C alone
+glm1 <- glm(X[, 1] ~ C, family = binomial)
+summary(glm1)
+hist(predict(glm1, type = "response"))
+```
+
+```{r}
+# Adjust for U and C together
+glm2 <- glm(X[, 1] ~ U + C, family = binomial)
+summary(glm2)
+```
+
+If estimating the effect of C (alone) on X, the estimated effect size is insignificant (close to 0), which is as expected. <!-- The predicted response (the probabilities) are also around 0.5.  -->
+
+However, if we estimate the effect of C on X conditioning on U, the estimated effect size of C becomes significant. This is because X can be regarded as a mediator on the chain U-\>X-\>C, which means that, if U is controlled, X and C are significantly associated.
+
+In short, when there are more than one potential confounder, as in the case above where the collider is accidentally treated as a confounder, perhaps an additive model for the propensity score is not appropriate.
+
+**How about a multiplicative model?**
+
+> What would happen if estimating the effect of C alone on a null variable Xj?
+
+```{r}
+glm3 <- glm(X[, 3] ~ C, family = binomial)
+summary(glm3)
+hist(predict(glm3, type = "response"))
+```
+
+The estimated effect size of $C$ is significant? Why?
+
+### Step 1: estimate the propensity scores and construct the weight matrix
+
+Suppose the collider $C$ is accidentally treated as a confounder and then is accounted for in the propensity score.
+
+```{r}
+PS1 <- matrix(nrow = n, ncol = p)
+PS2 <- matrix(nrow = n, ncol = p)
+for (j in 1 : p) {
+  PS1[, j] <- predict(glm(X[, j] ~ U, family = binomial), type = "response")
+  PS2[, j] <- predict(glm(X[, j] ~ C, family = binomial), type = "response")
+}
+```
+
+Check the propensity score matrix
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS1))
+apply(PS1, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS1)
+max(PS1)
+```
+
+```{r}
+# Check the probability matrix
+hist(as.numeric(PS2))
+apply(PS2, 2, function(x){sum(x<= 0.1 | x >= 0.9)})
+min(PS2)
+max(PS2)
+```
+
+Check the goodness-of-fit of the propensity score:
+
+```{r check ps 3, fig.width=6, fig.height=15}
+
+#| echo: false
+#| eval: false
+#| include: false
+
+par(mfrow = c(5, 2)) 
+for (j in 1 : p) {
+  plot(PS1[,j], Pmat[,j])  
+}
+```
+
+```{r}
+Wmat1 <- ifelse(X == 1, 1/PS1, 1/(1-PS1))
+Wmat2 <- ifelse(X == 1, 1/PS2, 1/(1-PS2))
+Wmat <- Wmat1 * Wmat2
+```
+
+### Step 2: plug in the IPW as weights and fit the model
+
+```{r}
+## Method 1: causal SuSiE with incorrect propensity score model
+res_cl2 <- clamp(X, y, W = Wmat, standardize = F)
+gsusie::print_gsusie_coefficients(res_cl2)
+```
+
+```{r}
+coefs[1:3]
+```

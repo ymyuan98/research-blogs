@@ -1,0 +1,166 @@
+---
+title: "Exploration! Causal SuSiE - Flexible Variance Ver."
+date: "last-modified"
+date-format: "MMM D, YYYY"
+format: 
+  html:
+    fig-width: 6
+    fig-height: 6
+editor: visual
+---
+
+## Review: Inverse Propensity Weighting and Weighted Least-Squared
+
+To adjust the confounding bias in estimating the causal effect, one way is to apply the inverse propensity weighting approach.
+
+Consider there is only one binary treatment, $X \in \{0,1\}$. To estimate the expectation of potential outcomes, we calculate the weighted average given by
+
+$$
+\hat{\mathbb{E}}[Y^{(x)}] = \frac{\sum_{i \in \mathcal{I}_x}\hat{W}_i Y_i}{\sum_{i \in \mathcal{I}_x} \hat{W}_i}, 
+$$
+
+where $\mathcal{I}_x$ is the index set of individuals who were assigned to the treatment group $x \in \{0, 1\}$, and $\hat{W}_i = 1/\hat{\operatorname{Pr}}(X_i=x)$ is the estimated weight, i.e. the inverse of propensity score, of individual $i$. Then, the average treatment effect, i.e. the causal effect of $X$, is given by
+
+$$
+\hat{\mathbb{E}}[Y^{(1)}] - \hat{\mathbb{E}}[Y^{(0)}]
+$$
+
+The causal effect estimated via inverse propensity weighting is equivalent to doing weighted least-squared estimation for outcome model
+
+$$
+\hat{\mathbb{E}}[Y|X] = \hat{\beta}_0+ \hat{\beta}_1 X
+$$
+
+via minimizing the weighted least square problem:
+
+$$
+\sum_{i=1}^{n}\hat{W}_i(Y_i - \beta_0 - \beta_1 X_i)^2.
+$$
+
+In brief, the estimated causal effect from the weighted least square problem, $\hat{\beta}_1$, should be equivalent to the average treatment effect, i.e.,
+
+$$
+\hat{\beta}_1 = \hat{\mathbb{E}}[Y^{(1)}] - \hat{\mathbb{E}}[Y^{(0)}], 
+$$
+
+and
+
+$$
+\hat{\beta}_0 = \hat{\mathbb{E}}[Y^{(0)}], 
+$$
+
+where the expectation of potential outcomes are estimated using the inverse propensity weighting approach.
+
+(from Causal Inference: What If...? )
+
+## Step 1: define the simple regression model
+
+Still suppose there is only one binary treatment.
+
+Suppose $X$ is the explanatory variables, $Y$ is the response, and $U$ is the confounding factor affecting both $Y$ and $X$. We further assume that $\mathbf{X}$ and $U$ are linearly related to $Y$:
+
+$$
+Y = X \beta_1 + U \xi_u + \epsilon, \ \text{with } \epsilon \sim N(0, \sigma^2).
+$$
+
+> Is the normality assumption required?
+
+By mathematical deduction (well, just some brief introduction), if we assuming that the population is reweighted by the inverse of propensity scores such that the pseudo-population is unconfounded by $U$, we may then rewrite the model as
+
+$$
+Y = X \beta_1 + \epsilon^*, \text{with } \epsilon^{*} \sim N \left(0, \frac{\sigma^2}{W_i}\right)
+$$
+
+where $W_i = 1/\operatorname{Pr}(X_i = x|U)$.
+
+> Show the equivalence of these two models? Does U have to be linearly correlated with Y?
+
+Correspondingly, the MLE of $\beta_1$ and its variance are
+
+$$
+\hat{\beta}_1 := \frac{\sum_{i}w_i x_i y_i}{\sum_i w_i x_i^2}
+$$
+
+$$
+s^2 := \frac{\sigma^2}{\sum_i w_i x_i^2}.
+$$
+
+This (heteroscedastic) simple regression model is equivalent to:
+
+$$
+[w^{1/2} Y] = [w^{1/2} X] \beta_1 + \epsilon, \ \epsilon \sim N(0, \sigma^2).
+$$
+
+**Notes:** when the individual-level weights $\{w_i\}$ are scaled, the MLE $\hat{\beta}_1$ remains unchanged, but its corresponding variance changes: If $\{w_i\}$ are normalized, i.e. we plug $w_i^* = w_i / \sum_{i'=1}^n w_{i'}$ instead, then
+
+$$
+s^{*2} = \frac{\sigma^2}{\sum_i w_i^* x_i^2} = \frac{\sigma^2 \sum_{i} w_i}{\sum_i w_i x_i^2} \geq s^2.
+$$
+
+## Step 2: define the multiple linear regression model based on Step 1
+
+### High-level idea: decompose the response into causal partitions and random errors
+
+Recall that the high-level idea of SuSiE is to decompose the response into several explainable parts and the random error, each of the former is explained by one effect variables.
+
+![Fig.1: The framework of SuSiE](figures/SuSiE.jpeg){fig-align="center"}
+
+The idea of causal SuSiE (the so-called CLAMP(?)) is alike. We attempt to decompose the response $y$ into several causal partitions and the random error, and each several causal partition of $y$ is expected to be explained by a causal variable via fitting a weighted least square model.
+
+![Fig.2: The framework of causal SuSiE](figures/causal-susie.jpeg){fig-align="center"}
+
+The definition of the linear regression model is important because it determines the likelihood function of the model.
+
+#### Justification for the weights:
+
+Weights $w_j^* = \frac{w_j^{1/2}}{\sum_{j'=1}^n w_j^{1/2} + c}$: As stated above, the inverse propensity weighting is equivalent to a weighted least-squares model
+
+$$
+[w^{1/2} Y] = [w^{1/2} X] \beta_1 + \epsilon, \ \epsilon \sim N(0, \sigma^2).
+$$
+
+The model can be explained like this: for a causal variable $X_j$, $w_j^{1/2} X_j$ explains $w_j^{1/2} y$. By dividing the original ones by $\sum_{j'=1}^p w_{j'}^{1/2} + c$ (normalizing denominator), where $c > 0$ is the flexible constant, we have that $\sum_{j=1}^p w^*_j X_j \beta_j$ explains $\sum_{j=1}^p w^*_j \cdot y = \frac{\sum_{j=1}^p w_j^{1/2}}{\sum_{j'=1}^p w_j^{1/2} + c} \cdot y$.
+
+The denominator is the combination of the sum of original weights and a positive constant $c$ for model flexibility and computational stability. The positive constant $c$ exists because the response $y$ cannot be completely explained by those causal variables; by such construction, we allow $\frac{c}{\sum_{j'=1}^p w_j^{1/2} + c} \cdot y$ to be unexplained by $X_j's$ and be represented by the random error $\epsilon$.
+
+That is to say, the flexible constant $c$ is related to the random error $\epsilon \sim N(0, \sigma^2)$. Notice that $c$ is shared across all individual $i$ (and thus all layers in the causal SuSiE(?)).
+
+### Definition of the multiple linear regression model (ver 1)
+
+$$
+y = x_1^* \beta_1 + x_2^* \beta_2 + \cdots + x_p^* \beta_p + \epsilon, \ \epsilon \sim N(0, \sigma^2). 
+$$
+
+where the $j$-th variable, $x_{j}^* = w_j^* x_j$ , is the transformed explanatory variable, and the weight $w_j^*$ is defined above.
+
+> Is this an equivalent linear regression model? Are the estimated coefficients $\hat{\beta}_j$'s unbiased?
+
+#### The corresponding likelihood function
+
+$$
+\mathcal{L} = \left(\frac{1}{\sqrt{2\pi \sigma^2}}\right)^{n} \exp \left\{ -\frac{1}{2 \sigma^2} \sum_{i=1}^{n} \left(y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2 \right\}
+$$
+
+The equivalent log-likelihood function is
+
+$$
+\ell = -\frac{n}{2} \log (2\pi \sigma^2) - \frac{1}{2\sigma^2} \sum_{i=1}^n \left(y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2. 
+$$
+
+Then, the estimated coefficients $\hat{\beta}_j$'s are:
+
+$$
+\hat{\beta}_j = \arg\min \sum_{i=1}^n \left( y_i - \sum_{j=1}^p x^*_{ij} \beta_j \right)^2. 
+$$
+
+> Is each $\hat{\beta}_j$ equivalent to those estimated from the WSER shown above? Proofs needed.
+
+#### Residual Sum of Squares
+
+$$
+\text{RSS} = \sum_{i=1}^n \left(y_i - \sum_{j=1}^p x^*_{ij} \hat{\beta}_j \right)^2
+$$
+
+Is the flexible parameter $c$ identifiable?
+
+### Definition of the multiple linear regression model (ver 2)
