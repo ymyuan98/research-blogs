@@ -51,7 +51,7 @@ $$ {#eq-varPIP}
 
 Similarly, we call $\alpha_{j(k)}\ (k=1, \ldots, K_j-1)$ the level-wise posterior inclusion probability (levPIP) of the $j$th variable.
 
-### 1.1 A simple case: binary $X_j$ 
+### 1.1 A simple case: binary $X_j$
 
 Then, the level-wise PIP equals the variable-wise PIP, i.e.,
 
@@ -141,19 +141,19 @@ $$
 
 This holds with the following condition: the first $k$ causes $X_{i1}, \ldots, X_{im}$ satisfy overlap, $P((X_{i1}, \ldots, X_{im}) \in \mathcal{X}|Z_i, V_i) > 0$ for any set $\mathcal{A}$ such that $P(\mathcal{X}) > 0$.
 
-### 2.3. Is it possible to identify the baseline effects without bias where more than two causal variables exist? 
+### 2.3. Is it possible to identify the baseline effects without bias where more than two causal variables exist?
 
 Maybe no..
 
 ------------------------------------------------------------------------
 
-## 3. What would be the "residuals" after removing the effect of the $l$-th layer? 
+## 3. What would be the "residuals" after removing the effect of the $l$-th layer?
 
 To define the residuals, we first need to confirm that what each layer $L$, estimated by function `Causal-SER` , represents.
 
 Here are a two interpretations:
 
-### 3.1 Treat each level independently in each layer, i.e., traditional way. 
+### 3.1 Treat each level independently in each layer, i.e., traditional way.
 
 As usual, each layer $l$ is designed to estimate a non-zero treatment effect $\Delta_{j(k)}$. In this case, each $\Delta_{j(k)}$ is treated independently and, for the $j$th exposure, the effect of the $l$-th layer is $\sum_{k=1}^{K_j-1} X_{j(k)} \cdot (\alpha_{j(k)} \mu_{j(k)})$.
 

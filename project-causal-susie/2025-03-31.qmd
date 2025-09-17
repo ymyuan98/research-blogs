@@ -21,10 +21,10 @@ Assume the causal effects are identifiable under certain assumptions.
 As we proposed before, we can use approaches like IPW to estimate the causal effect of variable $X_j$ (for all $j$), and then the potential outcome model can be approximately expressed as
 
 $$
-Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \epsilon_i, \ \epsilon_i \sim \mathcal{N}(0, \sigma^2),
+Y_i(\mathbf{x}_i) = \sum_{j=1}^p \left(\theta_{j}^{(0)} + \Delta_{j}^{(1)} X_{ij}^{(1)} + \Delta_{j}^{(2)} X_{ij}^{(2)} \right) + \epsilon_i, \ \epsilon_i \sim \mathcal{N}(0, \sigma^2),
 $$ {#eq-POmodel2}
 
-where, for $j=1, \ldots, p$, $\theta_{j(k)} := \mathbb{E}_U[f_j(k, u)]$ are the marginal average causal effect of $X_j$ when $X_j=k \ (k=0,1,2)$, $\Delta_{j(k)} = \theta_{j(k)} - \theta_{j(0)}, \ (k=1,2)$ are the average treatment effects, and $X_{ij}^{(k)} := \mathbb{I}[X_{ij} = k], \ (k=1,2)$ are the dummy variables of $X_j$ of the $i$th individual.
+where, for $j=1, \ldots, p$, $\theta_{j}^{(k)} := \mathbb{E}_U[f_j(k, u)]$ are the marginal average causal effect of $X_j$ when $X_j=k \ (k=0,1,2)$, $\Delta_{j}^{(k)} = \theta_{j}^{(k)} - \theta_{j}^{(0)}, \ (k=1,2)$ are the average treatment effects, and $X_{ij}^{(k)} := \mathbb{I}[X_{ij} = k], \ (k=1,2)$ are the dummy variables of $X_j$ of the $i$th individual.
 
 ------------------------------------------------------------------------
 
@@ -39,8 +39,8 @@ $$
 Therefore, according to the second equation above, the likelihood function of individual $i$ of the model is given by
 
 $$
-\mathcal{L}_i \left(y_i, \mathbf{x}_i \bigg| \left\{\theta_{j(0)}, \Delta_{j(1)}, \Delta_{j(2)} \right\}_{j=1}^{p} , \sigma^2 \right) :=
-\frac{1}{\sqrt{2\pi \sigma^2}} \exp \left\{-\frac{1}{2\sigma^2} \left[ y_i - \sum_{j=1}^p \left( \theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) \right]^2 \right\} 
+\mathcal{L}_i \left(\left\{\theta_{j}^{(0)}, \Delta_{j}^{(1)}, \Delta_{j}^{(2)} \right\}_{j=1}^{p}, \sigma^2 \bigg| y_i, \mathbf{x}_i \right) :=
+\frac{1}{\sqrt{2\pi \sigma^2}} \exp \left\{-\frac{1}{2\sigma^2} \left[ y_i - \sum_{j=1}^p \left( \theta_{j}^{(0)} + \Delta_{j}^{(1)} X_{ij}^{(1)} + \Delta_{j}^{(2)} X_{ij}^{(2)} \right) \right]^2 \right\} 
 $$ {#eq-likelihood}
 
 That is, we go back to where we started: a linear regression model!
@@ -49,13 +49,13 @@ We should be clear that the likelihood function is (only) a measure of how well 
 
 A few things to be discussed:
 
-1.  Should we include the estimated $\left\{\theta_{j(0)}\right\}$ when calculating the likelihood?
+1.  Should we include the estimated $\left\{\theta_{j}^{(0)}\right\}$ when calculating the likelihood?
 
-    Based on the equation above, yes, we should. Mathematically, estimating $\theta_{j(0)}$ is not a difficult task because it is estimated via IPW, and it is an essential estimate for $\Delta_{j(k)}$. The hesitation is, after obtaining the IPW estimates $\hat{\Delta}_{j(k)}$, a Bayesian estimation is proceeded; that is, the estimation of $\Delta_{j(k)}$ in the output is actually the posterior mean, not the IPW estimate.
+    Based on the equation above, yes, we should. Mathematically, estimating $\theta_{j}^{(0)}$ is not a difficult task because it is estimated via IPW, and it is an essential estimate for $\Delta_{j}^{(k)}$. The hesitation is, after obtaining the IPW estimates $\hat{\Delta}_{j}^{(k)}$, a Bayesian estimation is proceeded; that is, the estimation of $\Delta_{j}^{(k)}$ in the output is actually the posterior mean, not the IPW estimate.
 
 2.  The likelihood function does not take part in the update processes in our method. It only serves as a part of measure of convergences(?). The update of parameters is determined by the updating equations.
 
-3.  If we don't consider the estimation of $\left\{ \theta_{j(0)} \right\}$ when computing the likelihood, would it be harmful to the convergence, i.e., would it make the likelihood unstable?
+3.  If we don't consider the estimation of $\left\{ \theta_{j}^{(0)} \right\}$ when computing the likelihood, would it be harmful to the convergence, i.e., would it make the likelihood unstable?
 
 ------------------------------------------------------------------------
 
@@ -64,14 +64,14 @@ A few things to be discussed:
 Recall the potential outcome model @eq-POmodel and treat each $f_j(x_{j}, u)$ as a "weak learner". We approximate each "weak learner" using indicator functions
 
 $$
-f_j(x, u) \approx \theta_{j(0)} + \Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)},
+f_j(x, u) \approx \theta_{j}^{(0)} + \Delta_{j}^{(1)} X_{ij}^{(1)} + \Delta_{j}^{(2)} X_{ij}^{(2)},
 $$ and accordingly, the potential outcome model can be represented by @eq-POmodel2.
 
 > Define the model well...
 
 $$
-Y_i = \sum_{j=1}^p \left(\Delta_{j(1)} X_{ij}^{(1)} + \Delta_{j(2)} X_{ij}^{(2)} \right) + \sum_{j=1}^p \theta_{j(0)} + \epsilon_i, \\ \epsilon_i \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2), \\
-\boldsymbol{\Delta} = (\Delta_{j(1)}, \ldots, \Delta_{j(K_j-1)})_{j=1}^p = \delta \boldsymbol{\gamma}, \\
+Y_i = \sum_{j=1}^p \left(\Delta_{j}^{(1)} X_{ij}^{(1)} + \Delta_{j}^{(2)} X_{ij}^{(2)} \right) + \sum_{j=1}^p \theta_{j}^{(0)} + \epsilon_i, \\ \epsilon_i \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2), \\
+\boldsymbol{\Delta} = \left(\Delta_{j}^{(1)}, \ldots, \Delta_{j}^{(K_j-1)} \right)_{j=1}^p = \delta \boldsymbol{\gamma}, \\
 \delta \sim N(0, \sigma_0^2), \\
 \boldsymbol{\gamma} \sim \operatorname{Mult}(1, \boldsymbol{\pi}) \in \{0,1\}^{\sum_{j=1}^p K_j - p}.
 $$
