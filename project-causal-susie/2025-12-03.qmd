@@ -1,0 +1,373 @@
+---
+title: "Update note: Exploration on IPW method"
+subtitle: "under multiple treatments and/or misspecified causal DAG"
+date: today
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+We explore the questions under multiple treatments situations.
+
+#### Notations
+
+-   $X_1, \ldots, X_p$ : $p$ (binary) treatments,
+
+-   $Y$ : (observed) response,
+
+-   $U$: factor that yields the "correlation structure" among the $X$'s,
+
+-   $C$ : the confounder that simutaneously affecting multiple treatments and the response,
+
+-   $V$: the collider affected by both exposures and the response.
+
+```{r}
+ipw_func = function(w, t, y) {
+  # t: (binary) treatment
+  # w: weights
+  # y: response / outcome
+  
+  sum( t*w*y ) / sum( t*w ) - sum( (1-t)*w*y ) / sum( (1-t)*w )
+}
+```
+
+## Toy example 1: Covariates included in the propensity score model, with moderate overlap
+
+$$
+X_{ij} \mid U_i, C_i \sim \operatorname{Bern}(p_i),
+$$
+
+with
+
+$$
+\log \frac{p_i}{1-p_i} = \alpha_{uj} u_i + \alpha_{cj} c_i + \epsilon^x_{ij}, \epsilon^x_{ij} \sim N(0, 0.5^2).
+$$
+
+$$
+Y_i =  \beta_0 + \beta_1 X_{i1} + \beta_2 X_{i2} + \beta_c C_i + \epsilon^y_i \ \epsilon^y_i \sim N(0,\sigma^{2}_{(y)}).
+$$
+
+$$
+V_i = \gamma_{0} + \gamma_{1} X_{i1} + \gamma_2 X_{i2} + \gamma_3 X_{i3} + \gamma_y Y + \epsilon^v_i, \epsilon^v_i \sim N(0, \sigma^{2}_{(v)}).
+$$
+
+Under this setting,
+
+if letting $\alpha_{c2} = 0$, then only $X_1$ and $X_3$ are confounded by $U$
+
+```{r, message = F}
+sigmoid = function(eta) {
+  ifelse( eta > 0, 1 / (1 + exp(-eta)), exp(eta) / (1 + exp(eta)) )
+}
+
+library(tidyverse)
+```
+
+```{r toy-1-gen-data}
+set.seed(123456789)
+
+n = 1000
+p = 3
+U = rnorm(n)
+C = rnorm(n)
+
+alpha_u = c(0.2, 1, 1.8) ## coefficients: U -> Xs
+alpha_c = c(-1, 0, 1)  ## coefficients: C -> Xs. X2 is not affected by C.
+eps_x = matrix(rnorm(p*n, mean = 0, sd = 0.5), nrow = n)
+
+## generate propensity scores PS given U and C.
+PS = sigmoid(U %o% alpha_u + C %o% alpha_c + eps_x)
+colnames(PS) <- paste0("PS_", seq_len(ncol(PS)))
+## check the distribution of propensity scores. 
+as.data.frame(PS) %>%
+  mutate(row = row_number()) %>%
+  pivot_longer(-row, names_to = "column", values_to = "value") %>% 
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 15) +
+  facet_wrap(~ column, scales = "free") +
+  theme_bw()
+
+## generate X according to PS
+X <- matrix(rbinom(length(PS), size = 1, prob = as.vector(PS)),
+            nrow = nrow(PS), ncol = ncol(PS))
+apply(X, 2, table)
+
+## generate Y given X and C
+beta_x = c(1, -1.5, 0) # intercept = 0
+beta_c = -1
+eps_y = rnorm(n)
+Y = X %*% beta_x + beta_c*C + eps_y
+## check the distribution of Y 
+data.frame(Y = Y) %>%
+  ggplot(aes(x = Y)) + 
+  geom_histogram() + 
+  theme_bw()
+
+## generate V given X and Y
+gamm_x = c(-0.3, 0.5, -0.8)
+gamm_y = -1
+eps_v = rnorm(n)
+V <- gamm_x[1]*X[,1] + gamm_x[2]*X[,2] + gamm_x[3]*X[,3] + gamm_y * Y + eps_v
+## check the distribution of V 
+data.frame(V = V) %>%
+  ggplot(aes(x = V)) + 
+  geom_histogram() + 
+  theme_bw()
+```
+
+### 1. Propensity score model with C and U (true)!
+
+```{r}
+ps_x1 <- glm(X[,1] ~ C + U, family = "binomial")
+summary(ps_x1)
+
+ps_x2 <- glm(X[,2] ~ C + U, family = "binomial")
+summary(ps_x2)
+
+ps_x3 <- glm(X[,3] ~ C + U, family = "binomial")
+summary(ps_x3)
+
+est_PS <- data.frame(
+  est_1 = predict(ps_x1, type = "response"), 
+  est_2 = predict(ps_x2, type = "response"), 
+  est_3 = predict(ps_x3, type = "response")
+)
+
+## Draw plots to show the the estimation of propensity scores
+plot_df <- map_dfr(1:3, function(j) {
+  tibble(col   = j,
+         PS  = as.matrix(PS)[ , j],
+         est = as.matrix(est_PS)[ , j]
+         )
+})
+ggplot(plot_df, aes(x = PS, y = est)) + 
+  geom_point(alpha = 0.6) + 
+  facet_wrap( ~ col, scales = "free") + 
+  labs(x = "Propensity Score", y = "Estimated PS") + 
+  theme_bw()
+
+## Check the number of extreme ps (less than 0.1 or over 0.9)
+apply(est_PS, 2, function(cl) {sum(cl < 0.1 | cl > 0.9)}) 
+```
+
+**Strategy 1: Original PS**
+
+```{r}
+ipw_v1 <- rep(NA, times = ncol(X))
+for (j in 1 : ncol(X)) {
+  w <- ifelse( X[,j] == 1, 1/est_PS[,j], 1/(1-est_PS[,j]) )
+  ipw_v1[j] <- ipw_func(w, X[,j], Y)
+}
+ipw_v1
+(bias_v1 = ipw_v1 - beta_x)
+```
+
+**Strategy 2: PS with trimming between \[0.1, 0.9\]**
+
+```{r}
+trimming = function(x, lb = 0.1, ub = 0.9) {
+  ifelse(x < lb, lb, ifelse(x > ub, ub, x))
+}
+```
+
+```{r}
+ipw_v2 <- rep(NA, times = ncol(X))
+
+est_PS_trim <- trimming(as.matrix(est_PS))
+for (j in 1 : ncol(X)) {
+  w <- ifelse( X[,j] == 1, 1/est_PS_trim[,j], 1/(1-est_PS_trim[,j]) )
+  ipw_v2[j] <- ipw_func(w, X[,j], Y)
+}
+ipw_v2
+(bias_v2 = ipw_v2 - beta_x)
+```
+
+**Strategy 3: Overlap weights**
+
+```{r}
+compute_overlap_weight <- function(ps, t) {
+  # ps: propensity score
+  # t:  treatment
+  stopifnot(length(ps) == length(t))
+  
+  ifelse(t == 1, 1-ps, ps)
+}
+```
+
+```{r}
+ipw_v3 <- rep(NA, times = ncol(X))
+for (j in 1 : ncol(X)) {
+  w <- compute_overlap_weight(est_PS[,j], X[,j])
+  ipw_v3[j] <- ipw_func(w, X[,j], Y)
+}
+ipw_v3
+(bias_v3 = ipw_v3 - beta_x)
+```
+
+**Comparison**
+
+```{r}
+sum(bias_v1^2)
+sum(bias_v2^2)
+sum(bias_v3^2)
+```
+
+Strategy 3 is the best in terms of bias.
+
+### 2. Propensity score model with $U$, $C$, and $V$, i.e., collider included (misspecified). 
+
+```{r}
+ps_x1 <- glm(X[,1] ~ C + U + V, family = "binomial")
+summary(ps_x1)
+
+ps_x2 <- glm(X[,2] ~ C + U + V, family = "binomial")
+summary(ps_x2)
+
+ps_x3 <- glm(X[,3] ~ C + U + V, family = "binomial")
+summary(ps_x3)
+
+est_PS <- data.frame(
+  est_1 = predict(ps_x1, type = "response"), 
+  est_2 = predict(ps_x2, type = "response"), 
+  est_3 = predict(ps_x3, type = "response")
+)
+
+## Draw plots to show the the estimation of propensity scores
+plot_df <- map_dfr(1:3, function(j) {
+  tibble(col   = j,
+         PS  = as.matrix(PS)[ , j],
+         est = as.matrix(est_PS)[ , j]
+         )
+})
+ggplot(plot_df, aes(x = PS, y = est)) + 
+  geom_point(alpha = 0.6) + 
+  facet_wrap( ~ col, scales = "free") + 
+  labs(x = "Propensity Score", y = "Estimated PS") + 
+  theme_bw()
+
+## Check the number of extreme ps (less than 0.1 or over 0.9)
+apply(est_PS, 2, function(cl) {sum(cl < 0.1 | cl > 0.9)}) 
+```
+
+###  
+
+**Strategy 1: Original PS**
+
+```{r}
+ipw_v1 <- rep(NA, times = ncol(X))
+for (j in 1 : ncol(X)) {
+  w <- ifelse( X[,j] == 1, 1/est_PS[,j], 1/(1-est_PS[,j]) )
+  ipw_v1[j] <- ipw_func(w, X[,j], Y)
+}
+ipw_v1
+(bias_v1 = ipw_v1 - beta_x)
+```
+
+**Strategy 2: PS with trimming between \[0.1, 0.9\]**
+
+```{r}
+ipw_v2 <- rep(NA, times = ncol(X))
+
+est_PS_trim <- trimming(as.matrix(est_PS))
+for (j in 1 : ncol(X)) {
+  w <- ifelse( X[,j] == 1, 1/est_PS_trim[,j], 1/(1-est_PS_trim[,j]) )
+  ipw_v2[j] <- ipw_func(w, X[,j], Y)
+}
+ipw_v2
+(bias_v2 = ipw_v2 - beta_x)
+```
+
+**Strategy 3: Overlap weights**
+
+```{r}
+ipw_v3 <- rep(NA, times = ncol(X))
+for (j in 1 : ncol(X)) {
+  w <- compute_overlap_weight(est_PS[,j], X[,j])
+  ipw_v3[j] <- ipw_func(w, X[,j], Y)
+}
+ipw_v3
+(bias_v3 = ipw_v3 - beta_x)
+```
+
+The result indicates that if mistakenly including colliders in the propensity score model, colliding bias / selection bias will be
+
+#### Discussion: mistakenly include collider in the propensity score model
+
+Now we discuss a simple case with only one treatment $X$. Assuming all the relationships are linear:
+
+C —\> X —\> ——\>
+
+—————\> Y ——\> V
+
+$$
+C \sim N(0,1)
+$$
+
+$$
+X = \alpha C + \epsilon_x
+$$
+
+$$
+Y = \beta_x X + \beta_c C + \epsilon_y
+$$
+
+$$
+V = \gamma_x X + \gamma_y Y + \epsilon_v
+$$
+
+```{r}
+#set.seed(47)
+nn = 1000
+cc = rnorm(nn)
+epx = rnorm(nn)
+epy = rnorm(nn)
+epv = rnorm(nn)
+
+aa = rnorm(1)
+xx = aa * cc + epx
+
+bbx = rnorm(1)
+bbc = rnorm(1)
+yy = bbx * xx + bbc * cc + epy
+
+ggx = rnorm(1)
+ggy = rnorm(1)
+vv = ggx * xx + ggy * yy + epv
+
+dat = data.frame(y = yy, x = xx, c = cc, v = vv)
+dat = as.data.frame(scale(dat))
+
+summary(lm(x ~ c + v, data = dat))
+```
+
+```{r}
+summary(lm(x ~ v, data = dat))
+```
+
+> #### Selection bias & Collider bias
+>
+> **Selection bias** = bias occurs when **the probability of being included in the analysis (the selected sample) depends on variables related to both the exposure and the outcome.**
+>
+> -   Selection bias can occur:
+>
+>     -   when treatment assignment and sample inclusion depend on the same set of **observed covariates** $X$. In this case, selection is a confounding mechanism:
+>
+>         $$
+>         X <-- C --> Y, \quad S <-- C.
+>         $$
+>
+>         In this case, PS can help if adjusting the covariates.
+>
+>     -   when **conditioning on a collider**, a variable that is an effect of two other variables:
+>
+>         $$
+>         X --> S <-- Y.
+>         $$
+>
+>         In this case, controlling for it does not close the collider path. To handle collider-type selection bias, we need: *selection models*, or *bounds*, or *sensitivity analyses*, or *front-door approaches*, if available.
+>
+>     -   due to **unmeasured** factors.
+>
+> **Collider bias** = bias occurs when **you condition on a collider** - a variable that is an effect of two other variables.
+>
+> **Conclusion**: collider bias is a **subtype** of selection bias.

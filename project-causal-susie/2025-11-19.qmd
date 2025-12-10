@@ -1,0 +1,395 @@
+---
+title: "Update: Explore Sample Balancing Strategies"
+subtitle: "especially under severe class imbalance"
+date: today
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+During the last run of exploration, we found that the proposed causal variable selection method performs pretty bad when the data are imbalanced, i.e., the proportion of the majority class over the minority class 90:10 (or even worse, 95:5).
+
+Such kind of class imbalance be induced by (?) the limited overlap of confounders(?). Or, in cases where latent factors extracted through matrix factorization are used as confounders, latent factors may sometimes perfectly predict (?) the treatment, leading to perfect separation of the treatment groups according to the latent factor. It this case, the overlap assumption in causal inference is violated.
+
+So, in this case, is it still a valid confounder?
+
+Therefore, we here explore what we could do when encountering severe class imbalance.
+
+Common approaches to handle class imbalance include:
+
+-   **Resampling**: oversapling the minority class / undersampling majority class / combination of both.
+
+-   **Class weighting**: weight minority class more heavily in loss function.
+
+Simulation studies are designed following @li2019 and @li-slides-DR.
+
+Assume there is one confounder $X$, one treatment $T$, and one response $Y$. The relationships between $X$, $T$, and $Y$ are:
+
+$$
+X_i \stackrel{iid}{\sim} N(\mu, \sigma_0^2), \\
+T_i=1 \mid X_i=x_i \sim \operatorname{Bern}(p(x_i)), \\
+p(x_i) = \frac{1}{1+\exp(-\alpha x_i)}, \\
+Y_i = \theta T_i + \beta X_i + \epsilon_i, \quad \epsilon_i \stackrel{iid}{\sim} N(0,\sigma_1^2).
+$$
+
+Here, set $\alpha > 0$ .
+
+-   In this case, if $x>0$, $P(T=1 \mid X) > 0.5$. On the contrary, $P(T=1 \mid X) < 0.5$ when $x<0$.
+
+-   When $\alpha$ is large, it is more likely that $p(x)$ is close to 0 or 1.
+
+-   If $\mu >0$, $P(X>0) > P(X>\mu) = 0.5$. Then, the size of the treatment group $T=1$ is more likely to be greater than the size of the control group $T=0$.
+
+### Synthetic data generation
+
+```{r, message=FALSE}
+library(tidyverse)
+sigmoid = function(eta) {
+  ifelse( eta > 0, 1 / (1 + exp(-eta)), exp(eta) / (1 + exp(eta)) )
+}
+N = 1000
+```
+
+```{r}
+set.seed(123)
+
+## Generate confounder X
+mu = -1.5
+sigma0 = 1 
+x = rnorm(N, mu, sigma0)
+
+## Generate treatment T given X
+alpha = 3
+eta = alpha * x + rnorm(N, sd = 0.1)
+ps = sigmoid(eta)  # propensity score
+df = data.frame(id = 1:N, x = x, ps = ps)
+#   # ggplot(df, aes(x = id, y = ps)) +
+#   # geom_point() + 
+#   ggplot(df, aes(x = ps)) + 
+#   geom_histogram(position = "identity", alpha = 0.5, bins = 30) + 
+#   theme_minimal()
+# range(ps)
+
+t = rbinom(N, 1, ps)
+table(t)
+df = df %>% mutate(t = t)
+ggplot(df, aes(x = ps, fill = as.factor(t))) + 
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) + 
+  scale_fill_manual(values = c("steelblue", "tomato")) +
+  labs(title = "Histograms of Propensity Scores", 
+       x = "propensity score P(T=1|x)", 
+       fill = "T") + 
+  theme_minimal()
+
+ggplot(df, aes(x = x, fill = as.factor(t))) + 
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) + 
+  scale_fill_manual(values = c("steelblue", "tomato")) +
+  labs(title = "Histograms of Confounders", 
+       x = "X", 
+       fill = "T") + 
+  theme_minimal()
+
+## Generate Y given T and X
+theta = 1
+beta = 1
+eps = rnorm(N)
+y = theta * t + beta * x + eps
+df = df %>% mutate(y = y)
+ggplot(df, aes(x = x, y = y, color = as.factor(t))) + 
+  geom_point(alpha = 0.8) + 
+  scale_color_manual(values = c("steelblue", "tomato")) +
+  labs(color = "T", x = "X (confounder)", y = "Y (response)") + 
+  theme_minimal()
+
+y1 = theta * 1 + beta * x + eps
+y0 = theta * 0 + beta * x + eps
+```
+
+### Method 1: Inverse Probability Weighting
+
+We estimate the ATE with a modified Horviz-Thompson (mHT) estimator, given by
+
+$$
+\hat{\theta} = \frac{\sum_{i=1}^N \hat{w}_i T_i Y_i}{ \sum_{i=1}^N \hat{w}_i T_i} - \frac{\sum_{i=1}^N \hat{w}_i (1-T_i) Y_i}{\sum_{i=1}^N \hat{w}_i (1-T_i)},
+$$
+
+where, assuming $e(x) = P(T=1 \mid X=x)$ , the weights $\hat{w}_i$ is given by
+
+$$
+\hat{w}_i = \begin{cases} 
+\frac{1}{\hat{e}(x_i)}, \quad & \text{if } T_i = 1  \\
+\frac{1}{1 - \hat{e}(x_i)}, \quad & \text{if } T_i = 0.  
+\end{cases}
+$$
+
+```{r ps-model}
+ps_fit = glm(t ~ x, family = "binomial")
+est_ps = predict(ps_fit, type = "response")
+
+ggplot(data.frame(true_ps = ps, est_ps = est_ps, t = t)) + 
+  geom_point( aes(x = true_ps, y = est_ps, color = as.factor(t)) ) + 
+  scale_color_manual(values = c("steelblue", "tomato")) + 
+  geom_abline(slope = 1, intercept = 0, color = "gray", 
+              linetype = 3, linewidth = 1) + 
+  labs(title = "Propensity Score Estimation", 
+       x = "True PS", y = "Estimated PS", color = "T") + 
+  theme_minimal()
+
+data.frame(est_ps = est_ps, t = t) %>% 
+ggplot(aes(x = est_ps, fill = as.factor(t))) + 
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) + 
+  scale_fill_manual(values = c("steelblue", "tomato")) +
+  labs(title = "Histograms of Estimated Propensity Scores", 
+       x = "Estimated propensity score", 
+       fill = "T") + 
+  theme_minimal()
+
+# Proportion of extreme PS (< 0.1 or > 0.9)
+sum(est_ps < 0.1 | est_ps > 0.9) / N
+```
+
+```{r ipw-function}
+ipw_func = function(w, t, y) {
+  # t: (binary) treatment
+  # w: weights
+  # y: response / outcome
+  
+  sum( t*w*y ) / sum( t*w ) - sum( (1-t)*w*y ) / sum( (1-t)*w )
+}
+```
+
+#### Method 1.1: Vanilla version
+
+```{r}
+w = ifelse(t == 1, 1 / est_ps, 1 / (1-est_ps) )
+ipw_v1 = ipw_func(w, t, y)
+ipw_v1
+abs(ipw_v1 - theta)
+```
+
+#### Method 1.2: Trimmed PS version within ranges \[0.1, 0.9\]
+
+```{r}
+trimming = function(x, lb = 0.1, ub = 0.9) {
+  ifelse(x < lb, lb, ifelse(x > ub, ub, x))
+}
+
+est_ps_trim = trimming(est_ps)
+
+# data.frame(est_ps = est_ps_trim, t = t) %>% 
+#   ggplot(aes(x = est_ps, fill = as.factor(t))) + 
+#   geom_histogram(position = "identity", alpha = 0.5, bins = 30) + 
+#   scale_fill_manual(values = c("steelblue", "tomato")) +
+#   labs(title = "Histograms of Estimated Propensity Scores (Trimmed)", 
+#        x = "Estimated propensity score (Trimmed, lb=0.1, ub = 0.9)", 
+#        fill = "T") + 
+#   theme_minimal()
+
+w_trim = ifelse(t == 1, 1 / est_ps_trim, 1 / (1-est_ps_trim))
+ipw_v2 = ipw_func(w_trim, t, y) 
+ipw_v2
+abs(ipw_v2 - theta)
+```
+
+#### Method 1.3: Overlap weighting
+
+"Overlap weighting up-weights patients who have a substantial probability of receiving either treatment and smoothly down-weights the patients in the tails of the PS distribution. Specifically, patients with propensity scores of 0.5 make the largest contribution to the effect estimate and patients with propensity scores close to 0 and 1 make the smallest contribution."
+
+The definition of overlap weighting is:
+
+$$
+w_{OW}(x) = e(x) (1-e(x)).
+$$
+
+Multiplied by the original inverse probability weighting, the eventual weight is:
+
+$$
+\hat{w}(x_i) = 
+\begin{cases}
+1 - \hat{e}(x_i), \quad & \text{if } T_i = 1, \\
+\hat{e}(x_i), \quad & \text{if }T_i = 0,
+\end{cases}
+$$
+
+which is actually the 1 - estimated propensity score itself.
+
+```{r}
+w_ow = ifelse(t == 1, 1-est_ps, est_ps) 
+
+data.frame(w = w_ow, t = t) %>%
+  ggplot(aes(x = w, fill = as.factor(t))) + 
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30) + 
+  scale_fill_manual(values = c("steelblue", "tomato")) + 
+  labs(title = "Histograms of Overlap Weightings", 
+       x = "Overlap Weightings", 
+       fill = "T") + 
+  theme_minimal()
+
+ipw_v3 = ipw_func(w_ow, t, y)
+ipw_v3
+abs(ipw_v3 - theta)
+```
+
+#### Method 1.4: Estimate propensity scores with undersampling the majority class
+
+> <https://arxiv.org/html/2403.01585v1>
+
+This will induce larger variance of the estimated PS.
+
+```{r}
+# balance check
+table(t)  ## Not pretty severe imbalance ...
+```
+
+Do we need to adjust the propensity score? If yes, then how to adjust the propensity score?
+
+#### Method 1.5: Estimate propensity scores with upsampling the minority class
+
+...
+
+#### Summary
+
+It seems the IPW with overlap weightings works good even under severe class imbalance!
+
+### Method 2: Doubly Robust Estimator
+
+The doubly robust estimator is given by
+
+$$
+\hat{\tau}_{DR} = \hat{\mathbb{E}}[Y(1)]_{DR} - \hat{\mathbb{E}}[Y(0)]_{DR}
+$$
+
+$$
+= \frac{1}{n} \sum_{i=1}^n \left\{  \frac{T_i Y_i}{\hat{e}_i} - \frac{T_i - \hat{e}_i}{\hat{e}_i} \hat{m}_{1i} \right\} - \frac{1}{n} \sum_{i=1}^n \left\{ \frac{(1-T_i)Y_i}{1-\hat{e}_i} - \frac{(1-T_i)-(1-\hat{e}_i)}{1 - \hat{e}_i} \hat{m}_{0i}\right\}
+$$
+
+$$
+= \frac{1}{n} \sum_{i=1}^n \left\{ \frac{T_i - \hat{e}_i}{\hat{e}_i (1 - \hat{e}_i)} [Y_i - \hat{m}_{t_i}(x_i)]  + [\hat{m}_1(x_i) -\hat{m}_0(x_i)] \right\}. 
+$$
+
+```{r dr-function}
+
+dr_func = function(t, y, e, m0, m1) {
+  # t: treatment assignment
+  # y: observed response
+  # e: estimated propensity score
+  # m0: estimated outcome supposing t=0
+  # m1: estimated outcome supposing t=1
+  
+ (t - e) * (y - (e*m1 + (1-e)*m0)) /(e * (1-e)) + m1 - m0
+}
+```
+
+where $\hat{m}_{1i} := \hat{m}_1(x_i)$ and $\hat{m}_{0i} := \hat{m}_0(x_i)$ are the outcome models corresponding to the treatment group $T=1$ and the control group $T=0$, respectively. It is called the **T-learner** (T stands for Two).
+
+An alternative of the T-learner is the **S-learner** (S stands for Single), that is, one model trained on both the treated and control data with the treatment variable as an input feature, i.e., $m_{tx} := m(t, x)$.
+
+For simplicity, the outcome models are designed to be linear.
+
+```{r}
+## S-learner
+slearner = function(t, x, y) {
+  lm0 = lm(y ~ x, subset = (t == 0))
+  lm1 = lm(y ~ x, subset = (t == 1))
+  pred0 = predict(lm0, newdata = data.frame(x = x))
+  pred1 = predict(lm1, newdata = data.frame(x = x))
+  return(list(pred0 = pred0, pred1 = pred1))
+}
+
+## T-learner
+tlearner = function(t, x, y) {
+  lm2 = lm(y ~ x + t)
+  pred0 = predict(lm2, newdata = data.frame(x = x, t = 0))
+  pred1 = predict(lm2, newdata = data.frame(x = x, t = 1))
+  return(list(pred0 = pred0, pred1 = pred1))
+}
+```
+
+#### Method 2.0: Comparison of S-learner and T-learner
+
+For **S-learner**:
+
+Let $\hat{m}_{0}(x_i) = a_{00} + a_{10} x_i$ and $\hat{m}_1(x_i) = a_{01} + a_{11} x_{i}$. Thus,
+
+$$
+\hat{\theta}_i = \hat{m}_{1}(x_i) - \hat{m}_0(x_i) = (a_{01}-a_{00}) + (a_{11} - a_{10} )x_i. 
+$$
+
+```{r}
+s_outs = slearner(t, x, y)
+
+inds <- sample(1 : N, size = 100)
+data.frame(t = t, x = x) %>% 
+  mutate(s_ite = s_outs$pred1 - s_outs$pred0) %>%
+  ggplot() + 
+  geom_point(aes(x = x, y = s_ite, color = as.factor(t)), alpha = 0.8) + 
+  scale_color_manual(values = c("steelblue", "tomato")) + 
+  geom_hline(yintercept = theta, color = "darkgray", linetype = 2) + 
+  labs(title = "Estimated Treatment Effects of Each Individual (S-Learner)", 
+       y = "ITE", x = "X", color = "T") + 
+  theme_bw()
+```
+
+For **T-learner**:
+
+Let $\hat{m}(t,x) = a_0 + a_1 t + a_2 x$. Then,
+
+$$
+\hat{\theta}_i = \hat{m}(1, x_i) - \hat{m}(0, x_i) = a_1. 
+$$
+
+```{r}
+t_outs = tlearner(t, x, y)
+
+data.frame(t = t, x = x) %>% 
+  mutate(t_ite = t_outs$pred1 - t_outs$pred0) %>%
+  ggplot() + 
+  geom_point(aes(x = x, y = t_ite, color = as.factor(t)), alpha = 0.8) + 
+  scale_color_manual(values = c("steelblue", "tomato")) + 
+  geom_hline(yintercept = theta, color = "darkgray", linetype = 2) + 
+  labs(title = "Estimated Treatment Effects of Each Individual (T-Learner)", 
+       y = "ITE", x = "X", color = "T") + 
+  theme_bw()
+
+# lm2 = lm(y ~ x + t)
+# summary(lm2)
+# confint(lm2)
+```
+
+#### Method 2.1: Vanilla DR
+
+```{r}
+## DR estimate using s-learner
+dr_sv1 = dr_func(t, y, e = est_ps, m0 = s_outs$pred0, m1 = s_outs$pred1)
+mean(dr_sv1)
+plot(dr_sv1)
+
+## DR estimate using t-learner
+dr_tv1 = dr_func(t, y, e = est_ps, m0 = t_outs$pred0, m1 = t_outs$pred1)
+mean(dr_tv1)
+plot(dr_tv1)
+```
+
+It is clear that the estimates are severely affected by extreme propensity scores.
+
+#### Method 2.2: DR with trimmed PS within ranges \[0.1, 0.9\]
+
+```{r}
+est_ps_trim = trimming(est_ps)
+
+## s-learner
+dr_sv2 = dr_func(t, y, e = est_ps_trim, m0 = s_outs$pred0, m1 = s_outs$pred1)
+plot(dr_sv2)
+mean(dr_sv2)
+
+## t-learner
+dr_tv2 = dr_func(t, y, e = est_ps_trim, m0 = t_outs$pred0, m1 = t_outs$pred1)
+plot(dr_tv2)
+mean(dr_tv2)
+```
+
+#### Method 2.3: DR for balancing weights 
+
+```{r}
+## with overlap weight to quantify weighted ATE. 
+```

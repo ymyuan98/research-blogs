@@ -1,0 +1,108 @@
+---
+title: "Brief Overview of Overlap Weighting"
+date: today
+format: html
+editor: visual
+bibliography: references.bib
+---
+
+> References:
+>
+> 1.  Fan Li, Laine E Thomas, Fan Li, Addressing Extreme Propensity Scores via the Overlap Weights, *American Journal of Epidemiology*, Volume 188, Issue 1, January 2019, Pages 250–257, <https://doi.org/10.1093/aje/kwy201>
+> 2.  [Li, Fan, Kari Lock Morgan, and Alan M. Zaslavsky. "Balancing covariates via propensity score weighting." *Journal of the American Statistical Association* 113.521 (2018): 390-400.](https://www.tandfonline.com/doi/abs/10.1080/01621459.2016.1260466)
+
+## Overview of Overlap Weighting
+
+Let $Y_i$ be the observed outcome of individual $i$, $T_i$ be the (binary) treatment assignment, and $X_i$ be the confounding factors.
+
+Let $\hat{e}_i = \hat{\operatorname{Pr}}(T=1 \mid X = x_i)$ be the estimated propensity score of individual $i$.
+
+The general **inverse probability weighting** is defined as:
+
+$$
+w_{i}^{[\text{ipw}]} = 
+\begin{cases}
+1/\hat{e}_i, & \quad \text{if } \ T = 1 \\
+1/(1-\hat{e}_i), & \quad \text{if } \ T = 0.
+\end{cases}
+$$
+
+When $\hat{e}_i$ is small (close to 0) in treated units (T=1) or large (close to 1) in control units (T=0), the IPW method suffers from instability, i.e., large variance, and may introduce additional bias in practice. This is usually the case when the overlap of confounders are limited, and/or the treatment assignment is imbalanced.
+
+The overlap weighting is an advanced balancing weighting scheme that takes into account more of the overlap groups. It can be regarded as an additional weight, or saying the transition function $h_i := h(x_i) = e_i (1-e_i)$ to the IPW $w_{i}^{[\text{ipw}]}$. Its definition is
+
+$$
+w_{i} := w^{[\text{ow}]}_i = 
+\begin{cases}
+1-\hat{e}_i, & \quad \text{if } T = 1, \\
+\hat{e}_i,   & \quad \text{if } T = 0. \\
+\end{cases}
+$$
+
+-   "By construction, OW up-weights patients who have a substantial probability of receiving either treatment (i.e., individuals with $\hat{e}_i$ around 0.5) and smoothly down-weights the patients in the tails of the PS distribution (i.e., individuals with $\hat{e}_i$ close to 0 or 1). "
+
+-   "Specifically, **patients with propensity scores of 0.5 make the largest contribution** to the effect estimate and patients with PS close to 0 or 1 make the smallest contribution. "
+
+The according estimator using balancing weights, including propensity score weighting and the overlap weighting is
+
+$$
+\hat{\Delta}_w = \frac{\sum_{i=1}^n w_i T_i Y_i}{\sum_{i=1}^n w_i T_i} - \frac{\sum_{i=1}^n w_i (1-T_i) Y_i}{\sum_{i=1}^n w_i (1-T_i)}. 
+$$
+
+When applying the overlap weighting as $w_i$ , $\hat{\Delta}_w$ estimates the weighted ATE (**WATE**) over the target population whose density is defined by $f(x)h(x)$, given by
+
+$$
+\Delta_h = \frac{\int \Delta(dx) f(x) h(x) \mu(dx)}{\int f(x) h(x) \mu(dx)},
+$$
+
+where $\Delta(x)$ is the ATE, $f(x)$ is the marginal density of the covariates $X$, $h(x)$ is the pre-specified transition function, and $\mu$ is a base measure.
+
+Let $f_t(x) = \operatorname{Pr}(X=x \mid T=t)$ is the density of $X$ in the group $T=t$. Then,
+
+$$
+f_1(x) \propto f(x) e(x), \quad \text{and} \quad f_0(x) \propto f(x)(1-e(x)).
+$$
+
+(Well, the notations are very messy... May clear them up afterwards.)
+
+In brief, the $\hat{\Delta}_{\text{ow}}$ estimates the *average treatment effect for* *the overlap population* (**ATO**).
+
+#### Variance
+
+The variance of $\hat{\Delta}_{\text{ow}}$ can be obtained by bootstrapping. Besides, one may also use closed-form robust sandwich estimator instead.
+
+Suppose the PS model is *logistic* with $e(X) = 1/(1+\exp(-X^\top \beta))$. The consistent estimator of the variance of $\hat{\Delta}_{\text{ow}}$ is
+
+$$
+\operatorname{Var}(\hat{\Delta}_{ow}) = \frac{1}{(n \hat{\theta})^2} \sum_{i=1}^n \hat{I}_i^2,
+$$
+
+where
+
+$$
+\hat{\theta} = \frac{1}{n} \sum_{i=1}^n \hat{e}_i (1-\hat{e}_i), 
+$$
+
+$$
+\hat{I}_i = T_i (Y_i - \hat{\tau}_1)(1-\hat{e}_i) - (1-T_i)(Y_i - \hat{\tau}_0) \hat{e}_i - (T_i - \hat{e}_i) \boldsymbol{\hat{H}^\top_{\beta}} \boldsymbol{\hat{E}^{-1}_{\beta \beta}} \boldsymbol{X}_i,
+$$
+
+$$
+\boldsymbol{\hat{H}_{\beta}} = \frac{1}{n} \sum_{i=1}^n [T_i (Y_i - \hat{\tau}_1) + (1-T_i)(Y_i - \hat{\tau}_0)] \times \hat{e}_i (1-\hat{e}_i) \boldsymbol{X}_i,
+$$
+
+$$
+\boldsymbol{\hat{E}_{\beta \beta}} = \frac{1}{n} \sum_{i=1}^n \hat{e}_i (1-\hat{e}_i) \boldsymbol{X}_i \boldsymbol{X}_i^\top,
+$$
+
+where $\hat{\tau}_1 = \frac{\sum_{i=1}^n T_i Y_i(1-\hat{e}_i)}{\sum_{i=1}^n T_i (1-\hat{e}_i)}$ is the estimated average potential outcome for the treatment group $T=1$ of the overlap population, and, accordingly, $\hat{\tau}_0 = \frac{\sum_{i=1}^n (1-T_i) Y_i \hat{e}_i}{\sum_{i=1}^n (1-T_i) \hat{e}_i}$ .
+
+#### Aymptotic Bias
+
+...
+
+------------------------------------------------------------------------
+
+### Toy example
+
+A toy example is given in `2025-11-19.qmd` .
