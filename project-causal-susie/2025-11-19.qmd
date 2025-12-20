@@ -388,7 +388,7 @@ plot(dr_tv2)
 mean(dr_tv2)
 ```
 
-#### Method 2.3: DR for balancing weights 
+#### Method 2.3: DR for balancing weights
 
 ```{r}
 ## with overlap weight to quantify weighted ATE. 

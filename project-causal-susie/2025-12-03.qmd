@@ -214,7 +214,7 @@ sum(bias_v3^2)
 
 Strategy 3 is the best in terms of bias.
 
-### 2. Propensity score model with $U$, $C$, and $V$, i.e., collider included (misspecified). 
+### 2. Propensity score model with $U$, $C$, and $V$, i.e., collider included (misspecified).
 
 ```{r}
 ps_x1 <- glm(X[,1] ~ C + U + V, family = "binomial")
@@ -249,7 +249,7 @@ ggplot(plot_df, aes(x = PS, y = est)) +
 apply(est_PS, 2, function(cl) {sum(cl < 0.1 | cl > 0.9)}) 
 ```
 
-###  
+### 
 
 **Strategy 1: Original PS**
 
@@ -371,3 +371,7 @@ summary(lm(x ~ v, data = dat))
 > **Collider bias** = bias occurs when **you condition on a collider** - a variable that is an effect of two other variables.
 >
 > **Conclusion**: collider bias is a **subtype** of selection bias.
+
+## Conclusion
+
+Including colliders together with confounders in the propensity score model does not help in addressing the colliding bias when colliders are not able to be distinguished from the confounders.
