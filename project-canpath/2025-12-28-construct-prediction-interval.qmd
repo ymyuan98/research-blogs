@@ -1,0 +1,132 @@
+---
+title: "Construct Prediction Intervals for ML Predictions"
+format: html
+editor: visual
+---
+
+> Thanks to Perplexity that summarizes the following contents.
+
+The goal is to construct a prediction interval for a prediction from a machine learning approach.
+
+A $95\%$ prediction interval (PI) around a point prediction $\hat{y}(x_*)$ , say $[L(x_*), U(x_*)]$, is an interval such that $95\%$ of future outcomes at the current feature value $x_*$ will fall inside that range.
+
+A $95\%$ PI is different from a $95\%$ confidence interval (CI) in that:
+
+-   A CI is an interval for a parameter (e.g. population mean, regression coefficient);
+
+-   A PI is an interval for **a new observation** given $x_*$.
+
+-   Statistically, a point prediction $\hat{y}(x_*)$ at feature value $x_*$ equals to the conditional expectation of the outcome $\hat{\mathbb{E}}[y \mid x_*]$ (i.e., the population mean of outcome at a specific feature value $x_*$).
+
+-   A CI includes only the model uncertainty, but a **PI** includes not only the **model uncertainty**, but also the **noise uncertainty**. Hence, at the same confidence level, a **PI is always wider** than a CI.
+
+## Clarify goal and notation
+
+-   **Goal**: for each input $x_*$, return a point prediction $\hat{y}(x_*)$ and an interval $[L_* = L(x_*), U_* = U(x_*)]$ with nominal coverage $1-\alpha$ (for the prediction).
+
+## Approach 1: Parametric (model-based)
+
+This method works well if using linear regression (LM) or generalized linear models (GLM) or models that has a known error distribution.
+
+#### Steps
+
+1.  **Fit a parametric model** (e.g. linear regression) and obtain residuals $e_i = y_i - \hat{y}_i$.
+2.  **Estimate error variance** $\hat{\sigma}^2$ for the residuals and, if needed, a local variance for heteroscedasticity.
+3.  For a new input $x_*$:
+    -   Compute $\hat{y}_*$ and its variance $\operatorname{Var}(\hat{y}_*)$ from the model;
+
+    -   For a prediction interval under normal error, use
+
+        $$
+        \hat{y}_* \pm t_{1-\alpha/2, \nu} \sqrt{\operatorname{Var}(\hat{y}_*) + \hat{\sigma}^2},
+        $$
+
+    -   where $\nu$ is the residual degrees of freedom. For a linear regression model, $\nu = n - p - 1$, where $n$ is the sample size, $p$ is the number of covariates/explanatory variables.
+
+## Approach 2: Bootstrap / ensembles
+
+Useful for arbitrary ML regressors where you can refit many times.
+
+> Recommended for tree ensembles (RF/GBM):
+
+It uses percentile bootstrap interval, i.e., the empirical distribution of predictions. However, it only approximates true coverage, and can be miscalibrated if the ensemble variance does not reflect noise variance.
+
+#### Steps:
+
+1.  Generate bootstrap models:
+    -   Draw $B$ bootstrap samples from the training data.
+
+    -   Fit the same model on each sample to obtain models $f^{(1)}, \ldots, f^{(B)}$.
+2.  For a new $x_*$, collect predictions $\hat{y}_*^{(1)}, \ldots, \hat{y}_*^{(B)}$.
+3.  Construct intervals:
+    -   Sort the predictions and take empirical quantiles:
+
+        -   Lower bound $L_* = q_{\alpha/2} \left(\{\hat{y}_*^{(b)}\} \right)$;
+
+        -   Upper bound $U_* = q_{1-\alpha/2} \left(\{\hat{y}_*^{(b)}\} \right)$
+
+Variant for random forests: use per-tree predictions or residual-based methods (e.g. RFpredInterval, quantile forests) to get more calibrated intervals.
+
+## Approach 3: Conformal prediction (model-agnostic)
+
+Conformal prediction wraps any regression model to produce finite-sample valid prediction intervals under exchangeability (IID) asssumptions.
+
+Preferred for large data and models that are hard to refit.
+
+> Recommended for black-box regressor and want guaranteed coverage:
+
+#### Steps:
+
+1.  Split your data into :
+
+    -   Training set $\mathcal{D}_{\text{train}}$;
+
+    -   Calibration set $\mathcal{D}_{\text{cal}}$.
+
+2.  Fit the base model $f$ only on the *training set* $\mathcal{D}_{\text{train}}$.
+
+3.  On the *calibration set*, compute the nonconformity scores (typically absolute residuals):
+
+    -   For each $(x_i, y_i)$ in $\mathcal{D}_{\text{cal}}$, compute $r_i = |y_i - f(x_i)|$.
+
+4.  Choose miscoverage level $\alpha$ (e.g. 0.05). Compute the empirical $(1-\alpha)$-quantile of $\{r_i\}$:
+
+    -   $$
+        q = \text{quantile}_{1-\alpha}(\{r_i\})
+        $$
+
+    -   Use a slightly conservative quantile definition (e.g. sort the $r_i$ and take index $\lceil (n_{\text{cal}} + 1) \times (1-\alpha) \rceil$.
+
+5.  For a new $x_*$, predict $\hat{y}_* = f(x_*)$ and construct interval:
+
+    $$
+    L_* = \hat{y}_* - q, \quad U_* = \hat{y}_* + q.
+    $$
+
+Under exchangeability, this interval has marginal coverage at least $1-\alpha$ for new data, regardless of how complex $f$ is.
+
+#### Variants and refinements
+
+-   Locally adaptive intervals ...
+
+-   Jackknife / **Jackknife+** / CV+: use leave-one-out or cross-validation residuals to avoid a hard train/calibration split and often get tighter intervals.
+
+-   Off-the-shelf tools: libraries such as tidymodels (R) and MAPIE (Python) implement conformal intervals around arbitrary regressors.
+
+## Approach 4: Bayesian predictive intervals
+
+When you have a **Bayesian model** (Bayesian linear regression, Gaussian processes, Bayesian NNs), you get a full predictive distribution for $y_* \mid x_*, \mathcal{D}$.
+
+#### Steps:
+
+1.  **Fit a Bayesian model** to obtain posterior samples of parameters, i.e., $p(\theta \mid \mathbf{X,y})$,
+
+2.  For each posterior draw, simulate $y_*^{(s)} \sim p(y_* \mid x*, \theta^{(s)})$, where $\theta^{(s)} \sim p(\theta \mid \mathbf{X, y})$.
+
+3.  Use empirical quantiles of $\{y_*^{(s)}\}$ as prediction interval $[L_*, U_*]$.
+
+4.  If the posterior predictive distribution for $y_*$ (the distribution of possible unobserved values conditional on the observed values), i.e., $p(y_* \mid x_*, \mathbf{X,y}) = \int_{\Theta} p(y_* \mid \mathcal{x_*},\theta) p(\theta \mid \mathbf{X,y}) \ \text{d}\theta$ is available, than construct the prediction interval of $y^*$ directly from the posterior predictive distribution.
+
+    -   $p(y_* \mid x_*, \theta)$ is the log-likelihood function of $y$ given $x$ and parameters $\theta$, and
+
+    -   $p(\theta \mid \mathbf{X,y})$ is the posterior distribution of the parameters $\theta$ given (trained) data $\mathbf{X,y}$.
