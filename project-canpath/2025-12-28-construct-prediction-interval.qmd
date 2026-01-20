@@ -1,6 +1,6 @@
 ---
 title: "Construct Prediction Intervals for ML Predictions"
-format: html
+format: gfm
 editor: visual
 ---
 
