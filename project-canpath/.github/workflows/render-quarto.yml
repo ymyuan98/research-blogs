@@ -1,0 +1,32 @@
+name: Render Quarto on push
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'project-canpath/**.qmd'
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup-quarto@v2
+
+      - name: Render the QMD file into docs/
+        run: |
+          mkdir -p docs
+          quarto render project-canpath/2025-12-28-construct-prediction-interval.qmd --output-dir docs
+
+      - name: Commit rendered site
+        env:
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          git config user.name "$GIT_COMMITTER_NAME"
+          git config user.email "$GIT_COMMITTER_EMAIL"
+          git add docs || true
+          git commit -m "chore: render QMD to docs (project-canpath/2025-12-28-construct-prediction-interval.qmd)" || echo "No changes to commit"
+          git push
