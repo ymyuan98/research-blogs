@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="dcterms.date" content="2025-11-19">
 
-<title>Research Update: Explore Strategies of Balacing Samples Under Severe Class Imbalance</title>
+<title>Construct Prediction Intervals for ML Predictions</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -24,19 +23,48 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="2025-11-19_files/libs/clipboard/clipboard.min.js"></script>
-<script src="2025-11-19_files/libs/quarto-html/quarto.js" type="module"></script>
-<script src="2025-11-19_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="2025-11-19_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="2025-11-19_files/libs/quarto-html/popper.min.js"></script>
-<script src="2025-11-19_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="2025-11-19_files/libs/quarto-html/anchor.min.js"></script>
-<link href="2025-11-19_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="2025-11-19_files/libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="2025-11-19_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="2025-11-19_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="2025-11-19_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="2025-12-28-construct-prediction-interval_files/libs/clipboard/clipboard.min.js"></script>
+<script src="2025-12-28-construct-prediction-interval_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="2025-12-28-construct-prediction-interval_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="2025-12-28-construct-prediction-interval_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="2025-12-28-construct-prediction-interval_files/libs/quarto-html/popper.min.js"></script>
+<script src="2025-12-28-construct-prediction-interval_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="2025-12-28-construct-prediction-interval_files/libs/quarto-html/anchor.min.js"></script>
+<link href="2025-12-28-construct-prediction-interval_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="2025-12-28-construct-prediction-interval_files/libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="2025-12-28-construct-prediction-interval_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="2025-12-28-construct-prediction-interval_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="2025-12-28-construct-prediction-interval_files/libs/bootstrap/bootstrap-d6a003b94517c951b2d65075d42fb01b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -48,7 +76,7 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Research Update: Explore Strategies of Balacing Samples Under Severe Class Imbalance</h1>
+<h1 class="title">Construct Prediction Intervals for ML Predictions</h1>
 </div>
 
 
@@ -56,12 +84,6 @@ ul.task-list li input[type="checkbox"] {
 <div class="quarto-title-meta">
 
     
-    <div>
-    <div class="quarto-title-meta-heading">Published</div>
-    <div class="quarto-title-meta-contents">
-      <p class="date">November 19, 2025</p>
-    </div>
-  </div>
   
     
   </div>
@@ -71,7 +93,132 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-
+<blockquote class="blockquote">
+<p>Thanks to Perplexity that summarizes the following contents.</p>
+</blockquote>
+<p>The goal is to construct a prediction interval for a prediction from a machine learning approach.</p>
+<p>A <span class="math inline">\(95\%\)</span> prediction interval (PI) around a point prediction <span class="math inline">\(\hat{y}(x_*)\)</span> , say <span class="math inline">\([L(x_*), U(x_*)]\)</span>, is an interval such that <span class="math inline">\(95\%\)</span> of future outcomes at the current feature value <span class="math inline">\(x_*\)</span> will fall inside that range.</p>
+<p>A <span class="math inline">\(95\%\)</span> PI is different from a <span class="math inline">\(95\%\)</span> confidence interval (CI) in that:</p>
+<ul>
+<li><p>A CI is an interval for a parameter (e.g.&nbsp;population mean, regression coefficient);</p></li>
+<li><p>A PI is an interval for <strong>a new observation</strong> given <span class="math inline">\(x_*\)</span>.</p></li>
+<li><p>Statistically, a point prediction <span class="math inline">\(\hat{y}(x_*)\)</span> at feature value <span class="math inline">\(x_*\)</span> equals to the conditional expectation of the outcome <span class="math inline">\(\hat{\mathbb{E}}[y \mid x_*]\)</span> (i.e., the population mean of outcome at a specific feature value <span class="math inline">\(x_*\)</span>).</p></li>
+<li><p>A CI includes only the model uncertainty, but a <strong>PI</strong> includes not only the <strong>model uncertainty</strong>, but also the <strong>noise uncertainty</strong>. Hence, at the same confidence level, a <strong>PI is always wider</strong> than a CI.</p></li>
+</ul>
+<section id="clarify-goal-and-notation" class="level2">
+<h2 class="anchored" data-anchor-id="clarify-goal-and-notation">Clarify goal and notation</h2>
+<ul>
+<li><strong>Goal</strong>: for each input <span class="math inline">\(x_*\)</span>, return a point prediction <span class="math inline">\(\hat{y}(x_*)\)</span> and an interval <span class="math inline">\([L_* = L(x_*), U_* = U(x_*)]\)</span> with nominal coverage <span class="math inline">\(1-\alpha\)</span> (for the prediction).</li>
+</ul>
+</section>
+<section id="approach-1-parametric-model-based" class="level2">
+<h2 class="anchored" data-anchor-id="approach-1-parametric-model-based">Approach 1: Parametric (model-based)</h2>
+<p>This method works well if using linear regression (LM) or generalized linear models (GLM) or models that has a known error distribution.</p>
+<section id="steps" class="level4">
+<h4 class="anchored" data-anchor-id="steps">Steps</h4>
+<ol type="1">
+<li><strong>Fit a parametric model</strong> (e.g.&nbsp;linear regression) and obtain residuals <span class="math inline">\(e_i = y_i - \hat{y}_i\)</span>.</li>
+<li><strong>Estimate error variance</strong> <span class="math inline">\(\hat{\sigma}^2\)</span> for the residuals and, if needed, a local variance for heteroscedasticity.</li>
+<li>For a new input <span class="math inline">\(x_*\)</span>:
+<ul>
+<li><p>Compute <span class="math inline">\(\hat{y}_*\)</span> and its variance <span class="math inline">\(\operatorname{Var}(\hat{y}_*)\)</span> from the model;</p></li>
+<li><p>For a prediction interval under normal error, use</p>
+<p><span class="math display">\[
+\hat{y}_* \pm t_{1-\alpha/2, \nu} \sqrt{\operatorname{Var}(\hat{y}_*) + \hat{\sigma}^2},
+\]</span></p></li>
+<li><p>where <span class="math inline">\(\nu\)</span> is the residual degrees of freedom. For a linear regression model, <span class="math inline">\(\nu = n - p - 1\)</span>, where <span class="math inline">\(n\)</span> is the sample size, <span class="math inline">\(p\)</span> is the number of covariates/explanatory variables.</p></li>
+</ul></li>
+</ol>
+</section>
+</section>
+<section id="approach-2-bootstrap-ensembles" class="level2">
+<h2 class="anchored" data-anchor-id="approach-2-bootstrap-ensembles">Approach 2: Bootstrap / ensembles</h2>
+<p>Useful for arbitrary ML regressors where you can refit many times.</p>
+<blockquote class="blockquote">
+<p>Recommended for tree ensembles (RF/GBM):</p>
+</blockquote>
+<p>It uses percentile bootstrap interval, i.e., the empirical distribution of predictions. However, it only approximates true coverage, and can be miscalibrated if the ensemble variance does not reflect noise variance.</p>
+<section id="steps-1" class="level4">
+<h4 class="anchored" data-anchor-id="steps-1">Steps:</h4>
+<ol type="1">
+<li>Generate bootstrap models:
+<ul>
+<li><p>Draw <span class="math inline">\(B\)</span> bootstrap samples from the training data.</p></li>
+<li><p>Fit the same model on each sample to obtain models <span class="math inline">\(f^{(1)}, \ldots, f^{(B)}\)</span>.</p></li>
+</ul></li>
+<li>For a new <span class="math inline">\(x_*\)</span>, collect predictions <span class="math inline">\(\hat{y}_*^{(1)}, \ldots, \hat{y}_*^{(B)}\)</span>.</li>
+<li>Construct intervals:
+<ul>
+<li><p>Sort the predictions and take empirical quantiles:</p>
+<ul>
+<li><p>Lower bound <span class="math inline">\(L_* = q_{\alpha/2} \left(\{\hat{y}_*^{(b)}\} \right)\)</span>;</p></li>
+<li><p>Upper bound <span class="math inline">\(U_* = q_{1-\alpha/2} \left(\{\hat{y}_*^{(b)}\} \right)\)</span></p></li>
+</ul></li>
+</ul></li>
+</ol>
+<p>Variant for random forests: use per-tree predictions or residual-based methods (e.g.&nbsp;RFpredInterval, quantile forests) to get more calibrated intervals.</p>
+</section>
+</section>
+<section id="approach-3-conformal-prediction-model-agnostic" class="level2">
+<h2 class="anchored" data-anchor-id="approach-3-conformal-prediction-model-agnostic">Approach 3: Conformal prediction (model-agnostic)</h2>
+<p>Conformal prediction wraps any regression model to produce finite-sample valid prediction intervals under exchangeability (IID) asssumptions.</p>
+<p>Preferred for large data and models that are hard to refit.</p>
+<blockquote class="blockquote">
+<p>Recommended for black-box regressor and want guaranteed coverage:</p>
+</blockquote>
+<section id="steps-2" class="level4">
+<h4 class="anchored" data-anchor-id="steps-2">Steps:</h4>
+<ol type="1">
+<li><p>Split your data into :</p>
+<ul>
+<li><p>Training set <span class="math inline">\(\mathcal{D}_{\text{train}}\)</span>;</p></li>
+<li><p>Calibration set <span class="math inline">\(\mathcal{D}_{\text{cal}}\)</span>.</p></li>
+</ul></li>
+<li><p>Fit the base model <span class="math inline">\(f\)</span> only on the <em>training set</em> <span class="math inline">\(\mathcal{D}_{\text{train}}\)</span>.</p></li>
+<li><p>On the <em>calibration set</em>, compute the nonconformity scores (typically absolute residuals):</p>
+<ul>
+<li>For each <span class="math inline">\((x_i, y_i)\)</span> in <span class="math inline">\(\mathcal{D}_{\text{cal}}\)</span>, compute <span class="math inline">\(r_i = |y_i - f(x_i)|\)</span>.</li>
+</ul></li>
+<li><p>Choose miscoverage level <span class="math inline">\(\alpha\)</span> (e.g.&nbsp;0.05). Compute the empirical <span class="math inline">\((1-\alpha)\)</span>-quantile of <span class="math inline">\(\{r_i\}\)</span>:</p>
+<ul>
+<li><p><span class="math display">\[
+q = \text{quantile}_{1-\alpha}(\{r_i\})
+\]</span></p></li>
+<li><p>Use a slightly conservative quantile definition (e.g.&nbsp;sort the <span class="math inline">\(r_i\)</span> and take index <span class="math inline">\(\lceil (n_{\text{cal}} + 1) \times (1-\alpha) \rceil\)</span>.</p></li>
+</ul></li>
+<li><p>For a new <span class="math inline">\(x_*\)</span>, predict <span class="math inline">\(\hat{y}_* = f(x_*)\)</span> and construct interval:</p>
+<p><span class="math display">\[
+L_* = \hat{y}_* - q, \quad U_* = \hat{y}_* + q.
+\]</span></p></li>
+</ol>
+<p>Under exchangeability, this interval has marginal coverage at least <span class="math inline">\(1-\alpha\)</span> for new data, regardless of how complex <span class="math inline">\(f\)</span> is.</p>
+</section>
+<section id="variants-and-refinements" class="level4">
+<h4 class="anchored" data-anchor-id="variants-and-refinements">Variants and refinements</h4>
+<ul>
+<li><p>Locally adaptive intervals …</p></li>
+<li><p>Jackknife / <strong>Jackknife+</strong> / CV+: use leave-one-out or cross-validation residuals to avoid a hard train/calibration split and often get tighter intervals.</p></li>
+<li><p>Off-the-shelf tools: libraries such as tidymodels (R) and MAPIE (Python) implement conformal intervals around arbitrary regressors.</p></li>
+</ul>
+</section>
+</section>
+<section id="approach-4-bayesian-predictive-intervals" class="level2">
+<h2 class="anchored" data-anchor-id="approach-4-bayesian-predictive-intervals">Approach 4: Bayesian predictive intervals</h2>
+<p>When you have a <strong>Bayesian model</strong> (Bayesian linear regression, Gaussian processes, Bayesian NNs), you get a full predictive distribution for <span class="math inline">\(y_* \mid x_*, \mathcal{D}\)</span>.</p>
+<section id="steps-3" class="level4">
+<h4 class="anchored" data-anchor-id="steps-3">Steps:</h4>
+<ol type="1">
+<li><p><strong>Fit a Bayesian model</strong> to obtain posterior samples of parameters, i.e., <span class="math inline">\(p(\theta \mid \mathbf{X,y})\)</span>,</p></li>
+<li><p>For each posterior draw, simulate <span class="math inline">\(y_*^{(s)} \sim p(y_* \mid x*, \theta^{(s)})\)</span>, where <span class="math inline">\(\theta^{(s)} \sim p(\theta \mid \mathbf{X, y})\)</span>.</p></li>
+<li><p>Use empirical quantiles of <span class="math inline">\(\{y_*^{(s)}\}\)</span> as prediction interval <span class="math inline">\([L_*, U_*]\)</span>.</p></li>
+<li><p>If the posterior predictive distribution for <span class="math inline">\(y_*\)</span> (the distribution of possible unobserved values conditional on the observed values), i.e., <span class="math inline">\(p(y_* \mid x_*, \mathbf{X,y}) = \int_{\Theta} p(y_* \mid \mathcal{x_*},\theta) p(\theta \mid \mathbf{X,y}) \ \text{d}\theta\)</span> is available, than construct the prediction interval of <span class="math inline">\(y^*\)</span> directly from the posterior predictive distribution.</p>
+<ul>
+<li><p><span class="math inline">\(p(y_* \mid x_*, \theta)\)</span> is the log-likelihood function of <span class="math inline">\(y\)</span> given <span class="math inline">\(x\)</span> and parameters <span class="math inline">\(\theta\)</span>, and</p></li>
+<li><p><span class="math inline">\(p(\theta \mid \mathbf{X,y})\)</span> is the posterior distribution of the parameters <span class="math inline">\(\theta\)</span> given (trained) data <span class="math inline">\(\mathbf{X,y}\)</span>.</p></li>
+</ul></li>
+</ol>
+</section>
+</section>
 
 </main>
 <!-- /main column -->

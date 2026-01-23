@@ -1,0 +1,152 @@
+---
+title: "Centralizing X and Y?"
+format: html
+editor: visual
+---
+
+Here is to see what would happen if we first centralize X and Y before estimating the causal effects overall.
+
+Copying the toy example in `2025-12-03.qmd` ...
+
+#### Notations
+
+-   $X_1, \ldots, X_p$ : $p$ (binary) treatments,
+
+-   $Y$ : (observed) response,
+
+-   $U$: factor that yields the "correlation structure" among the $X$'s,
+
+-   $C$ : the confounder that simutaneously affecting multiple treatments and the response
+
+------------------------------------------------------------------------
+
+## Some Analyses
+
+### Causal effect estimation
+
+**Originally**, the IPW/OW estimator is computed, via modified HT estimator, by
+
+$$
+\hat{\delta} = \frac{\sum_{i=1}^n w_i x_i y_i}{\sum_{i=1}^n w_i x_i} - \frac{\sum_{i=1}^n w_i (1-x_i) y_i}{\sum_{i=1}^n w_i (1-x_i)},
+$$
+
+where each $x_i \in \{0,1\}$, and here $x_i = \mathbb{I}[x_i = 1]$ and $(1-x_i) = \mathbb{I}[x_i = 0]$.
+
+**Now**, if $x$ and $y$ are centralized, i.e., $x^* = x-\bar{x}$ and $y^* = y - \bar{y}$, then, since $x\in \{0,1 \}$, and after centralizing, $\mathbb{I}[x=1] = \mathbb{I}[x^* > 0]$, and $\mathbb{I}[x=0] = \mathbb{I}[x^* < 0]$.
+
+$$
+\hat{\delta}^* = \frac{\sum_{i=1}^n w_i \mathbb{I}[x_i^* > 0] y_i^*}{\sum_{i=1}^n w_i \mathbb{I}[x_i^* > 0]} - \frac{\sum_{i=1}^n w_i \mathbb{I}[x_i^* < 0] y_i^*}{\sum_{i=1}^n w_i \mathbb{I}[x_i^* < 0]}
+$$
+
+$$
+= \frac{\sum_{i=1}^n w_i \mathbb{I}[x_i=1] (y_i- \bar{y})}{\sum_{i=1}^n w_i \mathbb{I}[x_i=1]} - \frac{\sum_{i=1}^n w_i \mathbb{I}[x_i=0] (y_i - \bar{y})}{\sum_{i=1}^n w_i \mathbb{I}[x_i=0]}
+$$
+
+$$
+= \hat{\delta} - (\bar{y} - \bar{y}) = \hat{\delta}.
+$$
+
+It means, **centralizing** $x$ **and** $y$ **does not affect the mHT estimates**.
+
+### When fitting a linear regression...
+
+Suppose
+
+$$
+X_{ij} \mid U_i, C_i \sim \operatorname{Bern}(p_i),
+$$
+
+with
+
+$$
+\log \frac{p_i}{1-p_i} = \alpha_{uj} u_i + \alpha_{cj} c_i + \epsilon^x_{ij}, \epsilon^x_{ij} \sim N(0, 0.5^2).
+$$
+
+$$
+Y_i(\mathbf{x}) =  \theta + \sum_{j=1}^p \delta_j X_{ij} + g (C_i) + \epsilon_i, \ \epsilon_i \sim N(0, \sigma^2),
+$$
+
+And, as discussed in my comprehensive exam (?), assume the causal effect is identifiable.
+
+------------------------------------------------------------------------
+
+```{r}
+ipw_func = function(w, x, y) {
+  # x: (binary) treatment
+  # w: weights
+  # y: response / outcome
+  
+  sum( x*w*y ) / sum( x*w ) - sum( (1-x)*w*y ) / sum( (1-x)*w )
+}
+```
+
+## Toy example 1: Covariates included in the propensity score model, with moderate overlap
+
+Suppose
+
+$$
+X_{ij} \mid U_i, C_i \sim \operatorname{Bern}(p_i),
+$$
+
+with
+
+$$
+\log \frac{p_i}{1-p_i} = \alpha_{uj} u_i + \alpha_{cj} c_i + \epsilon^x_{ij}, \epsilon^x_{ij} \sim N(0, 0.5^2).
+$$
+
+$$
+Y_i =  \beta_0 + \beta_1 X_{i1} + \beta_2 X_{i2} + \beta_c C_i + \epsilon^y_i \ \epsilon^y_i \sim N(0,\sigma^{2}_{(y)}).
+$$
+
+Under this setting,
+
+if letting $\alpha_{c2} = 0$, then only $X_1$ and $X_3$ are confounded by $U$
+
+```{r, message = F}
+sigmoid = function(eta) {
+  ifelse( eta > 0, 1 / (1 + exp(-eta)), exp(eta) / (1 + exp(eta)) )
+}
+
+library(tidyverse)
+```
+
+```{r toy-1-gen-data}
+set.seed(123456789)
+
+n = 1000
+p = 3
+U = rnorm(n)
+C = rnorm(n)
+
+alpha_u = c(0.2, 1, 1.8) ## coefficients: U -> Xs
+alpha_c = c(-1, 0, 1)  ## coefficients: C -> Xs. X2 is not affected by C.
+eps_x = matrix(rnorm(p*n, mean = 0, sd = 0.5), nrow = n)
+
+## generate propensity scores PS given U and C.
+PS = sigmoid(U %o% alpha_u + C %o% alpha_c + eps_x)
+colnames(PS) <- paste0("PS_", seq_len(ncol(PS)))
+## check the distribution of propensity scores. 
+as.data.frame(PS) %>%
+  mutate(row = row_number()) %>%
+  pivot_longer(-row, names_to = "column", values_to = "value") %>% 
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 15) +
+  facet_wrap(~ column, scales = "free") +
+  theme_bw()
+
+## generate X according to PS
+X <- matrix(rbinom(length(PS), size = 1, prob = as.vector(PS)),
+            nrow = nrow(PS), ncol = ncol(PS))
+apply(X, 2, table)
+
+## generate Y given X and C
+beta_x = c(1, -1.5, 0) # intercept = 0
+beta_c = -1
+eps_y = rnorm(n)
+Y = X %*% beta_x + beta_c*C + eps_y
+## check the distribution of Y 
+data.frame(Y = Y) %>%
+  ggplot(aes(x = Y)) + 
+  geom_histogram() + 
+  theme_bw()
+```
