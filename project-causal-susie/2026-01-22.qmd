@@ -1,5 +1,5 @@
 ---
-title: "Pure Variational Inference on Fitting a SuSiE model"
+title: "Review: Pure Variational Inference on Fitting a Linear Regression Model"
 author: "Ming Yuan"
 date: today
 format: gfm
